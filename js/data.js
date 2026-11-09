@@ -8,6 +8,7 @@ export const DISHES = {
   oysters:  { name: 'Oysters', icon: '🦪', color: 0xc9c9c0 },
   pancakes: { name: 'Protein pancakes', icon: '🥞', color: 0xe0b060, hollie: true },
   salad:    { name: 'Salad', icon: '🥗', color: 0x5bbf4a, hollie: true },
+  cake:     { name: 'Birthday cake', icon: '🎂', color: 0xf8bbd0 },
 };
 export const DRINKS = {
   pint:     { name: 'Pint', icon: '🍺' },
@@ -34,6 +35,9 @@ export const CUSTOMER_TYPES = {
 };
 
 export const FRIENDS = ['Tommy', 'Harry H', 'Aidan', 'Noah', 'Oliver', 'Dylan'];
+// Build tweaks for cameos (Ian is roughly Noah's size).
+export const FRIEND_LOOKS = { Noah: { scale: 1.06, wide: 1.55, heavy: 2.4 } };
+export const IAN_LOOK = { skin: 0xf6d9c6, hair: 0xa9a9a9, scale: 1.06, wide: 1.55, heavy: 2.4 };
 
 // Lines -----------------------------------------------------------------
 export const LINES = {
@@ -87,6 +91,8 @@ export const LINES = {
   },
   chef: ['OUT OF MY KITCHEN!', 'NOT IN HERE, LANKY!'],
   regulars: ['OHHHHH!', 'MIND YOUR HEAD!', 'HAHAHA!', 'AGAIN! AGAIN!'],
+  commentary: ['What a strike!', 'Oh, he has hit that sweetly!', 'The big man does it again!', 'Unbelievable scenes at the Oysterfleet!', 'You will not see a better goal in a pub garden!'],
+  karaoke: ['Oh Oysterfleet, my Oysterfleet!', 'Mind your heaaaaad, mind your heaaaad!', 'Ronnie dropped the plates again, whoa-oh!', 'Dad is in the camo, you can\'t see him at all!', 'Tall lad in the bar, he\'s hitting all the beams!'],
   groupChat: [
     'Tommy: how\'s work lanky 😂', 'Harry H: is Ian in?? 👀', 'Dylan: Ronnie just posted a gym selfie from the walk-in fridge',
     'Noah: 5 a side tomorrow?', 'Oliver: bring us chips after', 'Aidan: have u hit ur head yet', 'Hollie: love u babe x',
@@ -112,41 +118,79 @@ export const QUIZ = [
 export const SHIFTS = [
   { id: 'mon', day: 'Mon', name: 'First Day Again', twist: 'Tutorial: crouch, carry, take orders. Ronnie introduces himself (it takes a while).',
     duration: 330, tables: [1, 2, 3, 5, 6], interval: 38, maxGroups: 4,
-    types: { family: 3, pensioner: 3, friends: 1 }, tutorial: true, garden: false, ianRate: 0.25, ronnieEvery: [70, 110], hour: 12 },
+    types: { family: 3, pensioner: 3, friends: 1 }, tutorial: true, garden: false, events: ['lightbulb', 'balloon', 'kegOut'], eventsFrom: 150, ianRate: 0.25, ronnieEvery: [70, 110], hour: 12 },
   { id: 'tue', day: 'Tue', name: 'Quiet Lunch', twist: 'Beer garden opens and the football is unlocked.',
     duration: 400, tables: [1, 2, 3, 4, 5, 6, 9, 10], interval: 32, maxGroups: 5,
-    types: { family: 2, pensioner: 3, fan: 2, influencer: 1, friends: 1, critic: 1 }, garden: true, ianRate: 0.35, ronnieEvery: [55, 90], hour: 13 },
+    types: { family: 2, pensioner: 3, fan: 2, influencer: 1, friends: 1, critic: 1 }, garden: true, events: ['dog', 'seagull', 'balloon', 'lightbulb', 'kegOut', 'proteinShaker'], ianRate: 0.35, ronnieEvery: [55, 90], hour: 13 },
   { id: 'wed', day: 'Wed', name: 'Quiz Night', twist: 'Quiz night. Ian enters the quiz and needs answers from you.',
-    duration: 420, tables: [1, 2, 3, 4, 5, 6, 7, 8], interval: 30, maxGroups: 6,
+    duration: 420, tables: [1, 2, 3, 4, 5, 6, 7, 8, 11], interval: 30, maxGroups: 6, functionRoom: true, events: ['karaoke', 'powerCut', 'kegOut', 'lightbulb', 'ronnieFridge', 'crab'],
     types: { family: 1, pensioner: 2, friends: 2, karen: 1, influencer: 1, critic: 1 }, garden: true, quiz: true, ianRate: 0.45, ronnieEvery: [50, 85], hour: 19 },
   { id: 'thu', day: 'Thu', name: "Hollie's Training Day", twist: 'Hollie runs laps. Hand her water bottles as she passes.',
     duration: 420, tables: [1, 2, 3, 4, 5, 6, 7, 9, 10], interval: 29, maxGroups: 6,
-    types: { family: 2, pensioner: 2, fan: 1, karen: 1, influencer: 1, critic: 1 }, garden: true, hollieLaps: true, hollieEarly: true, ianRate: 0.45, ronnieEvery: [50, 85], hour: 17 },
+    types: { family: 2, pensioner: 2, fan: 1, karen: 1, influencer: 1, critic: 1 }, garden: true, hollieLaps: true, hollieEarly: true, functionRoom: true, events: ['dog', 'seagull', 'rainStorm', 'birthday', 'flood', 'specialsFire', 'whereIsIan'], ianRate: 0.45, ronnieEvery: [50, 85], hour: 17 },
   { id: 'fri', day: 'Fri', name: 'Stag Do', twist: 'Loud lads, chants and mass ragdoll potential.',
-    duration: 450, tables: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], interval: 26, maxGroups: 7,
-    types: { stag: 4, friends: 1, karen: 1, pensioner: 1, critic: 1, fan: 1 }, garden: true, stagStart: true, ianRate: 0.55, ronnieEvery: [45, 75], hour: 20 },
+    duration: 450, tables: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], interval: 26, maxGroups: 7,
+    types: { stag: 4, friends: 1, karen: 1, pensioner: 1, critic: 1, fan: 1 }, garden: true, stagStart: true, functionRoom: true, events: ['fireAlarm', 'flood', 'proposal', 'wedding', 'specialsFire', 'crab', 'ronnieFridge', 'karaoke'], ianRate: 0.55, ronnieEvery: [45, 75], hour: 20 },
   { id: 'sat', day: 'Sat', name: 'Match Day', twist: 'Pub packed with fans. Score while the TV team scores for a huge tip.',
-    duration: 450, tables: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], interval: 24, maxGroups: 8,
-    types: { fan: 5, stag: 1, friends: 1, karen: 1, critic: 1 }, garden: true, matchDay: true, ianRate: 0.6, ronnieEvery: [45, 75], hour: 15 },
+    duration: 450, tables: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], interval: 24, maxGroups: 8,
+    types: { fan: 5, stag: 1, friends: 1, karen: 1, critic: 1 }, garden: true, matchDay: true, functionRoom: true, events: ['managerInspection', 'dog', 'seagull', 'fireAlarm', 'birthday', 'kegOut', 'deckchair'], ianRate: 0.6, ronnieEvery: [45, 75], hour: 15 },
   { id: 'sun', day: 'Sun', name: 'The Big Roast', twist: 'Every table books. Ian brings his whole fishing club. Survive the finale.',
-    duration: 480, tables: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], interval: 22, maxGroups: 9,
-    types: { family: 3, pensioner: 3, friends: 1, karen: 1, critic: 1, fan: 1 }, garden: true, roast: true, fishingClub: true, finale: true, ianRate: 0.7, ronnieEvery: [40, 70], hour: 18 },
+    duration: 480, tables: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], interval: 22, maxGroups: 9,
+    types: { family: 3, pensioner: 3, friends: 1, karen: 1, critic: 1, fan: 1 }, garden: true, roast: true, fishingClub: true, finale: true, functionRoom: true, events: ['healthInspector', 'birthday', 'proposal', 'deckchair', 'crab', 'powerCut', 'whereIsIan'], ianRate: 0.7, ronnieEvery: [40, 70], hour: 18 },
 ];
 
 export const MODES = {
   sandbox: { id: 'sandbox', day: '∞', name: 'Lock-In (Sandbox)', twist: 'Pub after closing. Endless customers, no score, pure chaos. Press A/E at the bar end for the toy box.',
     duration: Infinity, tables: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], interval: 25, maxGroups: 6,
-    types: { family: 2, pensioner: 2, stag: 2, fan: 2, friends: 2, karen: 1 }, garden: true, ianRate: 0.0, ronnieEvery: [60, 100], hour: 23, sandbox: true },
+    types: { family: 2, pensioner: 2, stag: 2, fan: 2, friends: 2, karen: 1 }, garden: true, functionRoom: true, events: 'all', ianRate: 0.0, ronnieEvery: [60, 100], hour: 23, sandbox: true },
   gentle: { id: 'gentle', day: 'GG', name: 'Gentle Giant', twist: 'Perfect service challenge. Throw anyone and the shift is over.',
     duration: 360, tables: [1, 2, 3, 4, 5, 6, 7], interval: 30, maxGroups: 5,
-    types: { family: 2, pensioner: 2, karen: 1, influencer: 1, critic: 1 }, garden: true, ianRate: 0.4, ronnieEvery: [55, 90], hour: 14, gentle: true },
+    types: { family: 2, pensioner: 2, karen: 1, influencer: 1, critic: 1 }, garden: true, events: ['birthday', 'proposal', 'managerInspection', 'balloon'], ianRate: 0.4, ronnieEvery: [55, 90], hour: 14, gentle: true },
   chaos: { id: 'chaos', day: '!!', name: 'Chaos Mode', twist: 'Score only from ragdolls and destruction. Chain it for a combo multiplier.',
     duration: 240, tables: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], interval: 14, maxGroups: 9,
-    types: { stag: 2, pensioner: 2, fan: 2, family: 1, karen: 1 }, garden: true, ianRate: 0, ronnieEvery: [30, 50], hour: 21, chaos: true },
+    types: { stag: 2, pensioner: 2, fan: 2, family: 1, karen: 1 }, garden: true, functionRoom: true, events: ['fireAlarm', 'dog', 'crab', 'flood', 'specialsFire'], ianRate: 0, ronnieEvery: [30, 50], hour: 21, chaos: true },
   special: { id: 'special', day: '★', name: 'Daily Special', twist: 'A new random rule every day.',
     duration: 360, tables: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], interval: 28, maxGroups: 6,
-    types: { family: 2, pensioner: 2, stag: 1, fan: 1, friends: 1, karen: 1, critic: 1 }, garden: true, ianRate: 0.45, ronnieEvery: [50, 80], hour: 16, special: true },
+    types: { family: 2, pensioner: 2, stag: 1, fan: 1, friends: 1, karen: 1, critic: 1 }, garden: true, functionRoom: true, events: 'all', ianRate: 0.45, ronnieEvery: [50, 80], hour: 16, special: true },
 };
+
+export const EXTRA_MODES = {
+  pubcup: { id: 'pubcup', day: '⚽', name: 'Pub Cup', twist: '3v3 in the beer garden: Lewis, Ronnie and Hollie vs the regulars. Goals are bins.',
+    duration: 240, tables: [], interval: 9999, maxGroups: 0, types: { family: 1 }, garden: true, ianRate: 0, ronnieEvery: [9999, 9999], hour: 17, minigame: 'pubcup', noStaff: true },
+  penalties: { id: 'penalties', day: '🥅', name: 'Penalty Shootout', twist: 'Ian goes in goal in full camo. Against the hedge he is nearly invisible. 5 penalties.',
+    duration: 180, tables: [], interval: 9999, maxGroups: 0, types: { family: 1 }, garden: true, ianRate: 0, ronnieEvery: [9999, 9999], hour: 18, minigame: 'penalties', noStaff: true },
+  trickshots: { id: 'trickshots', day: '🎯', name: 'Trick Shots', twist: 'Crossbar off a beam, volley through the hatch, chip the ice bucket, three walls into the bin, 10 keepie-uppies.',
+    duration: 360, tables: [], interval: 9999, maxGroups: 0, types: { family: 1 }, garden: true, ianRate: 0, ronnieEvery: [9999, 9999], hour: 22, minigame: 'trickshots', noStaff: true },
+  fivek: { id: 'fivek', day: '🏃', name: "Hollie's 5K", twist: 'Hollie runs laps of the beer garden. Grab water from the station and hand it to her as she passes.',
+    duration: 180, tables: [], interval: 9999, maxGroups: 0, types: { family: 1 }, garden: true, ianRate: 0, ronnieEvery: [9999, 9999], hour: 9, minigame: 'fivek', noStaff: true },
+  datenight: { id: 'datenight', day: '🕯', name: 'Date Night', twist: 'One table is just Hollie, with candles. Serve the pub AND sit with her (crouch at her table).',
+    duration: 360, tables: [1, 2, 3, 4, 5, 6, 7], interval: 30, maxGroups: 5, types: { family: 1, pensioner: 2, friends: 1, karen: 1 }, garden: false, ianRate: 0.3, ronnieEvery: [55, 90], hour: 21, minigame: 'datenight', events: ['lightbulb', 'proposal', 'kegOut'] },
+  showdown: { id: 'showdown', day: '🚐', name: 'Car Park Showdown', twist: 'Ian and the whole fishing club in the car park. Calm Dad down before time runs out.',
+    duration: 150, tables: [], interval: 9999, maxGroups: 0, types: { family: 1 }, garden: true, ianRate: 0, ronnieEvery: [9999, 9999], hour: 20, minigame: 'showdown' },
+  christmas: { id: 'christmas', day: '🎄', name: 'Christmas Day Shift', twist: 'Christmas jumpers, roast dinners, tinsel on the beams and snow outside.',
+    duration: 420, tables: [1, 2, 3, 4, 5, 6, 7, 8, 11], interval: 26, maxGroups: 7, types: { family: 4, pensioner: 3, friends: 2, karen: 1 }, garden: false, functionRoom: true, roast: true, season: 'christmas', ianRate: 0.5, ronnieEvery: [50, 80], hour: 15, events: ['birthday', 'powerCut', 'proposal', 'kegOut', 'balloon'] },
+  halloween: { id: 'halloween', day: '🎃', name: 'Halloween Pub', twist: 'Costumes, pumpkins, a power cut or two. Spooky.',
+    duration: 420, tables: [1, 2, 3, 4, 5, 6, 7, 8, 11], interval: 26, maxGroups: 7, types: { stag: 2, friends: 2, fan: 1, family: 2, karen: 1 }, garden: false, functionRoom: true, season: 'halloween', ianRate: 0.5, ronnieEvery: [45, 75], hour: 22, events: ['powerCut', 'powerCut', 'crab', 'specialsFire', 'karaoke', 'fireAlarm'] },
+  bbq: { id: 'bbq', day: '🍔', name: 'Summer BBQ', twist: 'Sunshine, the garden is rammed. Grill burgers on the BBQ yourself. Watch the seagulls.',
+    duration: 420, tables: [1, 2, 3, 4, 5, 6, 9, 10], interval: 26, maxGroups: 7, types: { family: 3, fan: 2, friends: 2, pensioner: 1, influencer: 1 }, garden: true, season: 'bbq', ianRate: 0.45, ronnieEvery: [45, 75], hour: 13, events: ['seagull', 'seagull', 'dog', 'rainStorm', 'birthday'] },
+};
+Object.assign(MODES, EXTRA_MODES);
+
+export const ALL_EVENTS = ['fireAlarm', 'powerCut', 'dog', 'seagull', 'kegOut', 'birthday', 'proposal', 'managerInspection', 'healthInspector', 'flood', 'rainStorm', 'wedding', 'crab', 'deckchair', 'ronnieFridge', 'proteinShaker', 'specialsFire', 'karaoke', 'lightbulb', 'balloon', 'whereIsIan'];
+
+export const COSMETICS = [
+  { id: 'apron-green', slot: 'apron', name: 'Oysterfleet apron', color: 0x1d3b2a, cost: 0 },
+  { id: 'apron-camo', slot: 'apron', name: 'Camo apron ("for Dad")', camo: true, cost: 30 },
+  { id: 'apron-black', slot: 'apron', name: 'Smart black apron', color: 0x111111, cost: 20 },
+  { id: 'apron-pink', slot: 'apron', name: "Hollie's pink apron", color: 0xff4f8b, cost: 20 },
+  { id: 'shirt-white', slot: 'shirt', name: 'White work shirt', color: 0xffffff, cost: 0 },
+  { id: 'shirt-blue', slot: 'shirt', name: 'Football shirt (blue, LEWIS 9)', color: 0x1d4fd8, kit: 'LEWIS 9', cost: 40 },
+  { id: 'shirt-red', slot: 'shirt', name: 'Football shirt (red, LEWIS 9)', color: 0xd81d1d, kit: 'LEWIS 9', cost: 40 },
+  { id: 'hat-none', slot: 'hat', name: 'No hat', cost: 0 },
+  { id: 'hat-headband', slot: 'hat', name: "Hollie's running headband", hat: 'headband', cost: 25 },
+  { id: 'hat-monster', slot: 'hat', name: 'Monster-can hat', hat: 'monster', cost: 35 },
+  { id: 'hat-santa', slot: 'hat', name: 'Santa hat', hat: 'santa', cost: 15 },
+];
 
 export const SPECIAL_RULES = [
   { id: 'everyoneIan', name: 'Everyone is Ian', desc: 'Every customer wears full camo. Good luck finding Dad.' },
@@ -173,6 +217,18 @@ export const ACHIEVEMENTS = {
   fiveStar: { name: 'Employee of the Month', desc: 'Five-star shift.' },
   calmIan: { name: 'Dad Whisperer', desc: 'Finish a shift with Ian calm.' },
   trolley: { name: 'Pudding Delivery', desc: 'Throw someone into the dessert trolley.' },
+  skip: { name: 'Skip Day', desc: 'Throw a fishing club member into the skip.' },
+  pubCup: { name: 'Pub Cup Winners', desc: 'Win the Pub Cup. The team photo goes on the wall.' },
+  penalties: { name: 'Past the Camo', desc: 'Score 4+ penalties past Ian.' },
+  trickshots: { name: 'Trick Shot Merchant', desc: 'Complete every trick shot.' },
+  hollie5k: { name: 'Water Station Hero', desc: 'Hand Hollie 10 water bottles in her 5K.' },
+  dateNight: { name: 'Smooth Operator', desc: 'Finish date night with Hollie happy.' },
+  bossDad: { name: 'Car Park Peace Treaty', desc: 'Calm Ian down in the car park finale.' },
+  bullseye: { name: 'Bullseye', desc: 'Hit a bullseye on the dartboard.' },
+  poolClear: { name: 'Table Cleared', desc: 'Pot every ball on the pool table.' },
+  photographer: { name: 'Disposable Memories', desc: 'Take 5 photos with the disposable camera.' },
+  fireWarden: { name: 'Fire Warden', desc: 'Put out the specials board with the extinguisher.' },
+  fullWeek: { name: 'One Week Survived', desc: 'Finish all 7 campaign shifts.' },
   pond: { name: 'Duck Duck Goose', desc: 'Throw someone into the duck pond.' },
 };
 

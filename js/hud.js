@@ -48,7 +48,8 @@ export function initHUD() {
   G.camera.add(toastMesh); toastMesh.position.set(0, 0.25, -0.9);
 }
 
-export function toast(text, dur = 3) { toasts.push({ text, dur }); }
+export function toast(text, dur = 3) { toasts.push({ text, dur }); if (toasts.length > 6) toasts.shift(); }
+export function clearToasts() { toasts.length = 0; current = null; }
 G.toast = toast;
 
 // Attach HUD to left wrist in VR, hide DOM version.
@@ -103,6 +104,8 @@ function drawHUD() {
     x.fillStyle = '#ffb74d'; x.font = 'bold 24px Arial'; x.fillText(`Chaos ${Math.round(s.chaos)}`, 360, 54);
   }
   let y = 92;
+  const extraLines = G.hudExtra ? G.hudExtra() : [];
+  for (const l of extraLines) { x.font = 'bold 22px Arial'; x.fillStyle = '#ffe082'; x.fillText(wrapText(x, l, W - 36)[0], 18, y); y += 28; }
   // Ian meter (fishing float)
   if (G.ian && s.cfg.ianRate > 0) {
     const m = G.ian.meter / 100;
@@ -130,7 +133,7 @@ function drawHUD() {
   const queued = (G.groupsRef || []).filter((g) => g.state === 'queue').length;
   if (queued) { x.fillStyle = '#ffcc80'; x.fillText(`🙋 ${queued} group${queued > 1 ? 's' : ''} waiting at the door`, 18, y); y += 27; }
   for (const t of rows.slice(0, 5)) {
-    if (y > H - (s.hint ? 118 : 60)) break;
+    if (y > H - (s.hint || s.tutHint ? 118 : 60)) break;
     const id = typeof t.id === 'number' ? 'T' + t.id : 'Hollie';
     let txt = '';
     if (t.state === 'ready') txt = 'take order';
@@ -155,9 +158,10 @@ function drawHUD() {
   extra.push(`Bonks ${G.player.bonks}`);
   x.textAlign = 'right'; x.fillText(extra.join('   '), W - 18, H - 32);
   bar(x, 250, H - 28, 120, 10, G.player.stamina, '#4fc3f7');
-  if (s.hint) {
+  const hintText = s.hint || s.tutHint;
+  if (hintText) {
     x.font = 'bold 20px Arial';
-    const hl = wrapText(x, s.hint, W - 40).slice(0, 2);
+    const hl = wrapText(x, hintText, W - 40).slice(0, 2);
     const bh = 12 + hl.length * 24;
     x.textAlign = 'center'; x.fillStyle = 'rgba(232,201,106,0.97)'; roundRect(x, 10, H - 40 - bh, W - 20, bh, 10); x.fill();
     x.fillStyle = '#1d2b22';

@@ -97,8 +97,12 @@ function loadVoices() {
 }
 if (window.speechSynthesis) { loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
 
-export function speak(text, who = 'customer', important = false) {
-  if (!G.settings.voices || !window.speechSynthesis) return;
+let voiceHook = null;
+export function setVoiceHook(fn) { voiceHook = fn; }
+export function speak(text, who = 'customer', important = false, key = text) {
+  if (!G.settings.voices) return;
+  if (voiceHook && voiceHook(who, key, important)) return;
+  if (!window.speechSynthesis) return;
   const now = performance.now();
   if (!important && (speechSynthesis.speaking || now - lastSpeak < 1800)) return;
   if (important) speechSynthesis.cancel();
@@ -109,3 +113,38 @@ export function speak(text, who = 'customer', important = false) {
   if (gbVoices.length) u.voice = who === 'hollie' ? (gbVoices.find((v) => /female|libby|sonia|kate|serena/i.test(v.name)) || gbVoices[0]) : pick(gbVoices.slice(0, 2));
   try { speechSynthesis.speak(u); } catch (e) { /* ignore */ }
 }
+
+// --- Music: a tiny step sequencer for the jukebox (and Ian's van) ---
+const SONGS = {
+  indie: { bpm: 132, bass: [40, 40, 47, 47, 45, 45, 43, 43], lead: [64, 0, 67, 69, 0, 71, 69, 67, 64, 0, 62, 64, 0, 67, 64, 62] },
+  pop: { bpm: 116, bass: [45, 45, 41, 41, 36, 36, 43, 43], lead: [69, 72, 76, 72, 74, 72, 69, 0, 67, 69, 72, 69, 67, 64, 62, 0] },
+  singalong: { bpm: 96, bass: [36, 43, 36, 43, 41, 48, 43, 47], lead: [60, 60, 64, 67, 67, 65, 64, 62, 60, 62, 64, 65, 64, 62, 60, 0] },
+  country: { bpm: 120, bass: [43, 38, 43, 38, 36, 43, 38, 43], lead: [71, 74, 71, 67, 69, 71, 69, 67, 64, 67, 69, 67, 0, 74, 71, 0] },
+};
+let songTimer = null, songStep = 0, current = null;
+const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
+function blipNote(type, f, t, dur, vol) {
+  const o = ctx.createOscillator(); o.type = type; o.frequency.value = f;
+  const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.02);
+}
+export const music = {
+  play(name) {
+    if (songTimer) { clearInterval(songTimer); songTimer = null; }
+    current = name;
+    if (!name || !ctx || !SONGS[name]) return;
+    const song = SONGS[name], stepDur = 60 / song.bpm / 2;
+    let next = ctx.currentTime + 0.05; songStep = 0;
+    songTimer = setInterval(() => {
+      if (!G.settings.sfx) return;
+      while (next < ctx.currentTime + 0.15) {
+        const n = song.lead[songStep % song.lead.length];
+        if (n) blipNote(name === 'country' ? 'sawtooth' : 'triangle', mtof(n), next, stepDur * 0.9, name === 'country' ? 0.025 : 0.04);
+        if (songStep % 2 === 0) blipNote('square', mtof(song.bass[(songStep / 2) % song.bass.length]), next, stepDur * 1.6, 0.025);
+        if (songStep % 4 === 0) { blipNote('sine', 70, next, 0.12, 0.08); }
+        next += stepDur; songStep++;
+      }
+    }, 40);
+  },
+  get current() { return current; },
+};

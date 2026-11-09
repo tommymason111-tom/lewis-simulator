@@ -5,7 +5,8 @@ import { collidePlayer, FIX } from './world.js';
 import { sloshDrink } from './physics.js';
 import { HEAD, PELVIS, LF, RF } from './people.js';
 import { sfx, initAudio } from './audio.js';
-import { labelSprite } from './textures.js';
+import { labelSprite, camoTexture } from './textures.js';
+import { COSMETICS } from './data.js';
 import { mat } from './world.js';
 
 const SKIN = 0xf1c27d;
@@ -35,15 +36,47 @@ function makeHandMesh(left) {
   return g;
 }
 
-// Lewis's own body (seen when looking down): apron + name badge.
+// Lewis's own body (seen when looking down): apron + name badge. His head is on
+// layer 5 so it only shows up in photos (selfies with the disposable camera).
+const SELFIE_LAYER = 5;
 function makeBody() {
   const g = new THREE.Group();
-  const shirt = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.7, 0.24), mat(0xffffff)); shirt.position.y = -0.62; g.add(shirt);
-  const apron = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.75, 0.02), mat(0x1d3b2a)); apron.position.set(0, -0.75, -0.13); g.add(apron);
+  const parts = {};
+  parts.shirt = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.7, 0.24), new THREE.MeshLambertMaterial({ color: 0xffffff })); parts.shirt.position.y = -0.62; g.add(parts.shirt);
+  parts.apron = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.75, 0.02), new THREE.MeshLambertMaterial({ color: 0x1d3b2a })); parts.apron.position.set(0, -0.75, -0.13); g.add(parts.apron);
   const badge = labelSprite('LEWIS — Happy to help', { w: 512, h: 96, size: 34, bg: '#f5f0e0', color: '#1d3b2a', stroke: 0, scale: 0.05 });
   badge.position.set(0.1, -0.42, -0.14); g.add(badge);
+  parts.kit = labelSprite('LEWIS 9', { size: 34, scale: 0.12, w: 256, h: 64 }); parts.kit.position.set(0, -0.5, 0.13); parts.kit.visible = false; g.add(parts.kit);
   const legs = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.95, 0.2), mat(0x222222)); legs.position.y = -1.48; g.add(legs);
+  // Head (selfie layer only)
+  const head = new THREE.Group();
+  const skin = new THREE.Mesh(new THREE.IcosahedronGeometry(0.13, 1), mat(SKIN)); head.add(skin);
+  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.138, 10, 6, 0, Math.PI * 2, 0, Math.PI * 0.5), mat(0x3b2412)); hair.rotation.x = 0.25; head.add(hair);
+  for (const sx of [-1, 1]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.014, 6, 4), mat(0x111111)); e.position.set(sx * 0.045, 0.02, -0.12); head.add(e); }
+  const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.008, 0.01), mat(0x5a1a1a)); mouth.position.set(0, -0.055, -0.123); head.add(mouth);
+  parts.hat = new THREE.Group(); head.add(parts.hat);
+  head.traverse((o) => o.layers.set(SELFIE_LAYER));
+  parts.head = head; g.add(head);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.2, 8), mat(SKIN)); neck.position.y = -0.2; neck.layers.set(SELFIE_LAYER); g.add(neck);
+  g.userData.parts = parts;
   return g;
+}
+
+export function applyCosmetics() {
+  const parts = G.body?.userData.parts; if (!parts) return;
+  const sel = Object.assign({ apron: 'apron-green', shirt: 'shirt-white', hat: 'hat-none' }, G.save.cosmetics || {});
+  const find = (id) => COSMETICS.find((c) => c.id === id) || {};
+  const apron = find(sel.apron), shirt = find(sel.shirt), hat = find(sel.hat);
+  if (apron.camo) { parts.apron.material.map = camoTexture(); parts.apron.material.color.set(0xffffff); }
+  else { parts.apron.material.map = null; parts.apron.material.color.set(apron.color ?? 0x1d3b2a); }
+  parts.apron.material.needsUpdate = true;
+  parts.shirt.material.color.set(shirt.color ?? 0xffffff);
+  parts.kit.visible = !!shirt.kit;
+  while (parts.hat.children.length) parts.hat.remove(parts.hat.children[0]);
+  if (hat.hat === 'headband') { const hb = new THREE.Mesh(new THREE.TorusGeometry(0.135, 0.015, 4, 14), mat(0x29b6f6)); hb.rotation.x = Math.PI / 2; hb.position.y = 0.04; parts.hat.add(hb); }
+  if (hat.hat === 'monster') { const c = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.2, 10), mat(0x111111)); c.position.y = 0.2; parts.hat.add(c); const l = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.12, 0.04), new THREE.MeshBasicMaterial({ color: 0x7cfc00 })); l.position.set(0, 0.2, -0.06); parts.hat.add(l); }
+  if (hat.hat === 'santa') { const c = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.25, 10), mat(0xd32f2f)); c.position.y = 0.17; parts.hat.add(c); const pom = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 4), mat(0xffffff)); pom.position.y = 0.3; parts.hat.add(pom); }
+  parts.hat.traverse((o) => o.layers.set(SELFIE_LAYER));
 }
 
 // ---------------------------------------------------------------- Hand
@@ -121,7 +154,7 @@ class Hand {
       if (it.dead) { this.held = null; this.stack = []; return; }
       it.pos.copy(this.pos);
       const yawQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, new THREE.Euler().setFromQuaternion(this.quat, 'YXZ').y, 0, 'YXZ'));
-      it.mesh.quaternion.copy(it.cls === 'card' || it.cls === 'ball' ? this.quat : yawQ);
+      it.mesh.quaternion.copy(it.cls === 'card' || it.cls === 'ball' || it.fullOrient ? this.quat : yawQ);
       sloshDrink(it, this.speed(), dt);
       this.stack = this.stack.filter((s) => !s.dead);
       this.stack.forEach((s, i) => {
@@ -218,7 +251,9 @@ export function setupInput(canvas) {
     if (!mouse.locked) { canvas.requestPointerLock?.(); return; }
     if (e.button === 0) pressed.Mouse0 = true;
     if (e.button === 2) pressed.Mouse2 = true;
+    if (e.button === 1) { pressed.Mouse1 = true; mouse.mid = true; e.preventDefault(); }
   });
+  canvas.addEventListener('mouseup', (e) => { if (e.button === 1) mouse.mid = false; });
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());
   document.addEventListener('pointerlockchange', () => { mouse.locked = document.pointerLockElement === canvas; if (!mouse.locked && G.mode === 'playing' && !G.xr && !G.touch) emit('requestPause'); });
   document.addEventListener('mousemove', (e) => { if (mouse.locked) { mouse.dx += e.movementX; mouse.dy += e.movementY; } });
@@ -237,6 +272,7 @@ export function setupTouch() {
       <button data-b="crouch">CROUCH</button>
       <button data-b="sprint">RUN</button>
       <button data-b="radio">RONNIE</button>
+      <button data-b="use">USE<br><small>item</small></button>
       <button data-b="pause">II</button>
     </div>`;
   const stick = document.getElementById('stick'), knob = document.getElementById('knob');
@@ -277,7 +313,7 @@ export function setupTouch() {
 
 // ---------------------------------------------------------------- per-frame input state
 function gatherInput() {
-  const inp = { move: V(), turn: 0, snap: 0, lookX: 0, lookY: 0, sprint: false, interact: false, interactHeld: false, crouchToggle: false, deepHeld: false, radio: false, pause: false, kick: false, grab: [false, false], release: [false, false], gripHeld: [false, false], throwHard: false, flatToggle: [false, false] };
+  const inp = { move: V(), turn: 0, snap: 0, lookX: 0, lookY: 0, sprint: false, interact: false, interactHeld: false, crouchToggle: false, deepHeld: false, radio: false, pause: false, kick: false, grab: [false, false], release: [false, false], gripHeld: [false, false], throwHard: false, flatToggle: [false, false], use: [false, false], useHeld: [false, false] };
   if (G.xr) {
     const session = G.renderer.xr.getSession();
     const srcs = session ? session.inputSources : [];
@@ -307,8 +343,9 @@ function gatherInput() {
       inp.gripHeld[i] = btn(pad, 1);
       inp.grab[i] = edge(pad, key, 1);
       inp.release[i] = !btn(pad, 1) && prev[key][1];
-      if (edge(pad, key, 0)) inp.interact = true;
-      if (btn(pad, 0)) inp.interactHeld = true;
+      const it = G.hands[i]?.held?.item;
+      if (it && (it.use || it.useHeld)) { inp.use[i] = edge(pad, key, 0); inp.useHeld[i] = btn(pad, 0); }
+      else { if (edge(pad, key, 0)) inp.interact = true; if (btn(pad, 0)) inp.interactHeld = true; }
     });
     prev.L = L ? L.buttons.map((b) => b.pressed) : [];
     prev.R = R ? R.buttons.map((b) => b.pressed) : [];
@@ -328,6 +365,9 @@ function gatherInput() {
   inp.kick = pressed.KeyF || pressed.T_kick;
   inp.flatToggle = [pressed.KeyQ || pressed.T_grabL, pressed.Mouse0 || pressed.T_grabR];
   inp.throwHard = pressed.Mouse2 || pressed.T_throw || pressed.KeyT;
+  const useIdx = G.hands[1].held?.item && (G.hands[1].held.item.use || G.hands[1].held.item.useHeld) ? 1 : 0;
+  inp.use[useIdx] = !!(pressed.KeyG || pressed.T_use || pressed.Mouse1);
+  inp.useHeld[useIdx] = !!(k.KeyG || touch.buttons.use || mouse.mid);
   return inp;
 }
 
@@ -485,12 +525,19 @@ function updateHands(dt, inp) {
     const h = G.hands[1].held ? G.hands[1] : G.hands[0];
     if (h.held) {
       const dir = V(); G.camera.getWorldDirection(dir);
-      const power = h.held.person ? 9 : 11;
-      h.release(dir.multiplyScalar(power).add(V(0, 2.5, 0)).add(G.player.vel));
+      const it = h.held.item;
+      if (it && it.aimThrow) h.release(dir.multiplyScalar(it.aimThrow).add(V(0, 0.5, 0)));
+      else { const power = h.held.person ? 9 : 11; h.release(dir.multiplyScalar(power).add(V(0, 2.5, 0)).add(G.player.vel)); }
       sfx.whoosh();
     }
   }
-  G.hands.forEach((h) => h.updateHeld(dt));
+  G.hands.forEach((h, i) => {
+    h.updateHeld(dt);
+    const it = h.held?.item;
+    if (!it) return;
+    if (inp.use[i] && it.use) it.use(h);
+    if (inp.useHeld[i] && it.useHeld) it.useHeld(h, dt);
+  });
 }
 
 function grabbableItems() { return G.items.filter((it) => !it.dead && it.cls !== 'shard' && (!it.held || (it.held.npc && it.kind !== 'keg'))); }

@@ -25,7 +25,8 @@ Everything is in this repo, including Three.js in `lib/`, so the game doesn't re
 | Deep crouch | Hold **B** | Hold V | – |
 | Grab / drop | **Grip** (either hand) | Left click (right hand), Q (left hand) | GRAB |
 | Throw | Swing and let go of the grip | Right click, or flick the mouse and click | THROW |
-| Talk / use / pour / wipe | **A** or trigger (hold to pour or wipe) | E (hold) | TALK |
+| Talk / pour / wipe | **A** or trigger (hold to pour or wipe) | E (hold) | TALK |
+| Use held item (camera, sauce, extinguisher, mic) | Trigger | G or middle click | USE |
 | Kick the football | Swing a controller low and fast | F | KICK |
 | Header | Lean your head into the ball | F when the ball is high | KICK |
 | Sprint | Click the left stick | Shift | RUN |
@@ -36,64 +37,98 @@ On the Quest, your order pad and meters sit on your left wrist. Look at your han
 
 ## What's in it
 
-**Waiter loop**: seat groups from the door, crouch to take orders (standing over people like a lamp post costs tips), spike the ticket, pour pints/Monsters/mocktails/tap water at the bar, carry plates from the pass (stack up to 3 per hand), take the bill, wipe the table. Each table has a pint-glass patience meter. Drinks slosh if you rush, and dropped plates smash.
+**Waiter loop**: seat groups from the door, crouch to take orders (standing over people like a lamp post costs tips), spike the ticket, pour pints/Monsters/mocktails/tap water at the bar, carry plates from the pass (stack up to 3 per hand), take the bill, wipe the table. Each table has a pint-glass patience meter. Drinks slosh if you rush, plates smash if dropped, and the kitchen re-cooks anything that gets smashed or stolen.
 
-**The pub**: the Oysterfleet with low "Mind Your Head" beams. Walk into one standing up and you get a head-bonk (thunk, blurry screen, the regulars cheer). There's also a bar, kitchen pass, ticket spike, beer garden with a bin goal and a duck pond, kids' ball pit, dessert trolley, fruit machine, a TV you can change by hitting it with the ball, and Ian's van. The light changes with the time of the shift.
+**The Oysterfleet**:
+- The pub, with low "Mind Your Head" beams. Walk into one standing up and you get a head-bonk (thunk, blurry screen, the regulars cheer).
+- Bar, kitchen pass and ticket spike.
+- Kids' ball pit, dessert trolley and fruit machine (now with a working lever).
+- A TV you can change by hitting it with the ball.
+- **Function room** (opens Wednesday): pool table, dartboard, karaoke stage, jukebox, and a long table for parties.
+- **Beer garden**: a proper pitch with a bin goal at each end, duck pond, picnic tables and a BBQ.
+- **Car park**: Ian's van (it plays country music) and a skip.
+- The light changes with the time of the shift.
 
-**Ragdolls**: every person is an active ragdoll. You can grab anyone by the head, arm, belt or ankle and throw them, and they knock over whoever they hit. Bonus chaos for landing someone in the ball pit, dessert trolley, duck pond, bins or fruit machine. Big throws trigger slow-mo.
+**People**:
+- **Ronnie**: stutter speech bubbles while things go wrong behind you, plus 9 kinds of bad "help". Send him to the staff room, radio him over, hand him a Monster, or crouch and arm-wrestle him.
+- **Ian**: a big lad (about Noah's size) with white skin and grey hair, in full camo every shift. His Kick-Off meter, the "Dad, sit down" talk, quiz night, his ever-growing fishing story, the tannoy, paying with a fish.
+- **Hollie**: serve her perfectly to calm every table. She dodges throws, chases runners, throws you a protein bar when your stamina's low, and her fitness watch counts your steps.
+- **Customers**: families, pensioners, stag dos, complainers, influencers, football fans, a secret food critic, and the lads as cameos (Noah has Ian's build).
 
-**Football**: the ball is always around from Tuesday onwards. You can kick, head, dribble and do keepie-uppies. Football fans tip you for a worldie. Score in the bin goal (or off the toilet door) while the TV team scores for a big bonus.
+**Ragdolls**: everyone is an active ragdoll. You can grab anyone by the head, arm, belt or ankle and throw them, and they knock over whoever they hit. Big throws trigger slow-mo. Bonus spots to land people: ball pit, dessert trolley, duck pond, bins, fruit machine, pool table, karaoke stage and the skip.
 
-**Ronnie**: stutter speech bubbles that type out one letter at a time while things go wrong behind you. His random "help":
-- drops 6 plates
-- takes table 4's food to table 7
-- pours a 90%-foam pint
-- gets stuck under a keg and blocks the taps
-- seats customers in the kitchen (the chef throws them out)
-- sweeps a handbag into the bin
-- does press-ups in the walkway
-- flirts with a stuttered pickup line
-- reads the specials over the tannoy
+**Football**: kick, head, dribble and do keepie-uppies, with commentary. Football fans tip for a worldie. Score while the TV team scores for a big tip. Toilet-door goal-line technology. The chef sends the ball back if it goes through the hatch.
 
-You can send him to the staff room or radio him over. Hand him a Monster and he's actually useful for 45 seconds.
+**Random pub events** (each shift has its own mix):
+- Fire alarm (walk everyone out to the street)
+- Power cut (phone torch on, reset the fuse box)
+- A dog stealing sausages
+- A seagull nicking chips
+- The keg running out (change it in the cellar)
+- A birthday cake (carry it slowly or the candles blow out)
+- A proposal (don't ruin it)
+- The manager's inspection
+- The health inspector (hide Ronnie)
+- Toilets flooding (mop it up; customers slip)
+- A rain storm (garden tables rush inside)
+- A wedding party spilling in
+- Ian's escaped crab
+- Ian's deckchair in the middle of the restaurant
+- Ronnie locked in the walk-in fridge
+- Ronnie's protein shaker exploding
+- The specials board catching fire while Ronnie stutters "f-f-f-FIRE" (use the fire extinguisher or throw a drink at it)
+- Karaoke night
+- A flickering light bulb (no ladder needed)
+- A balloon stuck on the ceiling
+- Where's Ian? (he's hiding in the hedge in camo)
 
-**Ian (Keep Ian Calm)**: his Kick-Off meter fills over the shift and he behaves worse as it rises (heckling, wandering off to argue, casting his rod, a speech from a chair). To calm him down:
-- put a pint on his table
-- crouch and pick the right line in the "Dad, sit down" talk
-- put fishing on the TV
-- carry him out to the beer garden (he comes back angrier)
-
-If the meter fills, he melts down and the shift is over. On quiz night he needs your answers.
-
-**Hollie**: she jogs in mid-shift. Serve her perfectly and every table's patience drains slower. She dodges if you try to throw her, and if you manage it she ignores you for 60 seconds. She chases down customers who do a runner, and on Thursday you hand her water bottles as she runs laps.
-
-**Customers**: families with kids, pensioners, stag dos, complainers, influencers (the food goes cold while they take photos), football fans in kits, a secret food critic each shift, and the lads as friend cameos (Tommy, Harry H, Aidan, Noah, Oliver, Dylan) with in-jokes.
+**Toys**:
+- Darts with real scoring (doubles, trebles, bullseye) and a record
+- Pool with a cue (VR) or a look-and-shoot
+- Knives that stick in the dartboard
+- Ketchup, mustard and mayo bottles that leave sauce splats
+- A fire extinguisher that sends you sliding backwards and knocks people over
+- A jukebox with 3 tracks
+- A karaoke mic
+- A disposable camera: take photos and selfies, then download them from the menu
 
 **Modes**:
-- The full 7-shift campaign (Mon tutorial → Sun Big Roast finale)
-- Lock-In sandbox (with a toy box)
-- Gentle Giant
-- Chaos Mode (combo multiplier)
-- Daily Special: a rule that changes every day, like low gravity, everyone is Ian, or Ronnie is the manager
+- **One Week at the Oysterfleet**: 7 shifts, Mon tutorial → Sun Big Roast. Sunday ends with a **car-park boss fight**: Ian and the fishing club. Dodge his fishing-rod casts, bin the club in the skip, and calm him with pints, the bait bucket from his van, or a crouched chat. Finishing the week rolls the credits as a bar tab.
+- **Mini-games**:
+  - Pub Cup 3v3 (Lewis, Ronnie and Hollie vs the regulars)
+  - Penalty shootout with camo Ian in goal
+  - Trick shots: crossbar off a beam, a volley through the hatch, a chip into the ice bucket, three walls into the bin, 10 keepie-uppies
+  - Hollie's 5K water station
+  - Date night
+  - Car Park Showdown
+- **Seasonal**: Christmas Day (tinsel, a tree, Santa hats, snow), Halloween (costumes, pumpkins, power cuts), Summer BBQ (grill burgers yourself, seagulls).
+- **Other**: Lock-In sandbox, Gentle Giant, Chaos Mode (combo multiplier), and a Daily Special rule that changes every day.
 
-**Also included**:
-- Staff-room upgrades bought with tips
-- Achievements
-- 7 hidden golden oysters (one is on top of the fridge where only Lewis can reach)
+**Progress and extras**:
+- Upgrades and a wardrobe (aprons including camo "for Dad", football shirts, the headband, a Monster-can hat, a Santa hat), all bought with tips
+- 21 achievements
+- 10 hiding spots for the 7 golden oysters. Find all 7 and the whole group turns up to raise a pint.
+- An Employee of the Month board (get 4.5★ or more on every shift of the week)
+- A Pub Cup team photo on the wall once you've won it
 - Review cards after each table
-- A newspaper headline about your worst moment at the end of the shift
+- A newspaper headline about your worst moment
+- A replay theatre for your best throw of the shift
+- Ronnie Cam picture-in-picture, which comes with the order-pad upgrade on a flat screen
 - Group-chat banter pop-ups
-- Character voices using the browser's text-to-speech
+
+**Mixed reality**: on Quest 3 there's a "Mixed reality" button that uses passthrough. The walls disappear and the pub's tables and customers appear in your living room.
+
+**Real voices: the Voice studio** (main menu). Pick a person (Ian, Ronnie, Hollie, the lads, Chef, Lewis's karaoke), hand them the iPad or phone, and record each line. Recordings play in the game straight away on that device. To get them onto the Quest:
+- **Export voice pack** on the phone or iPad, then **Import** it on the Quest, or
+- upload the exported `pack.json` to the repo's `voices/` folder, so everyone who opens the game gets the real voices.
+
+Any line nobody has recorded falls back to the browser's text-to-speech.
 
 Settings include a "normal height" mode (no crouching, no bonks), seated mode, left-handed controls and smooth turning.
 
-## Not done yet (from the design doc)
+## Not included
 
-- Recording the friend group's real voices (text-to-speech stands in for now)
-- Pub Cup 3v3, the penalty shootout, darts and pool
-- The car-park boss arena (Sunday's finale happens in the pub)
-- Multiplayer and mixed reality
-- Photo mode and the replay theatre
+- **Online multiplayer** (one player as Lewis, another as Ronnie). This needs a server to connect two headsets, and this project is a plain web page with no server. It's the one item from the design doc that isn't built.
 
 ## Files
 
@@ -107,7 +142,13 @@ Settings include a "normal height" mode (no crouching, no bonks), seated mode, l
 - `js/world.js`: the pub, collisions, pathfinding
 - `js/physics.js`: plates, pints and the football
 - `js/hud.js`: wrist HUD, prompts, toasts, VR panels
-- `js/data.js`: all the content: menu, lines, shifts, upgrades. **Edit this to add in-jokes.**
+- `js/events.js`: random pub events and ambient extras
+- `js/modes.js`: Pub Cup, penalties, trick shots, 5K, date night, car-park boss, seasonal decorations
+- `js/toys.js`: darts, pool, jukebox, karaoke, fruit machine, sauces, extinguisher, camera
+- `js/replay.js`: replay theatre
+- `js/voice.js`: voice studio (record / import / export)
+- `voices/pack.json`: shared voice recordings (empty until you upload one)
+- `js/data.js`: all the content: menu, lines, shifts, modes, events per shift, cosmetics, achievements, Ian's and Noah's builds. **Edit this to add in-jokes.**
 - `js/audio.js`: synthesised sound effects and voices
 
 To test on a computer, run `python3 -m http.server` in this folder and open `http://localhost:8000`. In the browser console, `LEWIS` gives you the live game state.

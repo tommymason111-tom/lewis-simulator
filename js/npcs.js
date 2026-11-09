@@ -4,7 +4,7 @@ import { G, V, rand, randi, pick, chance, clamp, emit, on, shuffle } from './sta
 import { Person, HEAD, PELVIS, NECK, LH, RH } from './people.js';
 import { FIX, inGarden, mat } from './world.js';
 import { Item, spawnDrink } from './physics.js';
-import { LINES, TALK_OPTIONS, QUIZ, DISHES } from './data.js';
+import { LINES, TALK_OPTIONS, QUIZ, DISHES, IAN_LOOK } from './data.js';
 import { groups, passPlates, runnerCaught, tableById } from './serving.js';
 import { stutterize } from './textures.js';
 import { sfx, speak } from './audio.js';
@@ -69,10 +69,15 @@ class Ronnie {
       label: () => {
         if (this.p.hidden) return null;
         if (this.blockingTaps) return 'Help Ronnie out from under the keg';
+        if (this.wrestle) return `ARM WRESTLE! Mash ${G.xr ? 'A / wiggle your controllers' : G.touch ? 'TALK' : 'E'}!`;
+        if (this.frozen > 0) return null;
+        if (G.player.isCrouched() && !this.seq) return 'Arm wrestle Ronnie (on a slow table)';
         return 'Send Ronnie to the staff room';
       },
       action: () => {
         if (this.blockingTaps) { this.endKeg(true); return; }
+        if (this.wrestle) { this.wrestle.p += 0.07; return; }
+        if (G.player.isCrouched() && !this.seq && !(this.frozen > 0)) { this.startWrestle(); return; }
         this.sendToStaffRoom();
       },
     };
@@ -80,7 +85,27 @@ class Ronnie {
     if (G.shift.cfg.tutorial) this.run(this.intro());
     else this.say(pick(LINES.ronnie.hello));
   }
-  say(t, dur = 3.5) { this.p.say(stutterize(t), { type: true, dur }); speak(t.replace(/(\w)-/g, ''), 'ronnie'); }
+  say(t, dur = 3.5) { this.p.say(stutterize(t), { type: true, dur }); speak(t.replace(/(\w)-/g, ''), 'ronnie', false, t); }
+  startWrestle() {
+    this.wrestle = { p: 0.5, t: 0 };
+    this.p.stopWalking(); this.p.faceTowards(G.player.pos);
+    this.say("A-a-arm wrestle? Y-y-you're on. I've b-b-been training.", 3);
+    this.status = 'Arm wrestling Lewis';
+  }
+  updateWrestle(dt) {
+    const w = this.wrestle;
+    w.t += dt;
+    w.p -= dt * (this.boost > 0 ? 0.16 : 0.11);
+    if (G.xr) w.p += (G.hands[0].speed() + G.hands[1].speed()) * dt * 0.05;
+    G.shift.hint = `💪 Arm wrestle: ${'█'.repeat(Math.round(w.p * 20))}${'░'.repeat(20 - Math.round(w.p * 20))}`;
+    if (w.p >= 1 || w.p <= 0 || w.t > 12) {
+      const won = w.p >= 0.5;
+      this.wrestle = null; G.shift.hint = '';
+      if (won) { this.say("G-g-gains... yours. D-don't tell the gym.", 3); emit('addTips', 2); emit('addChaos', 10, 'wrestle'); G.toast('You beat Ronnie at arm wrestling! +£2', 2.5); }
+      else { this.flex(); G.toast('Ronnie wins. He will mention this for weeks.', 2.5); }
+      this.status = 'Helping';
+    }
+  }
   run(gen, onEnd) {
     this.seq?.abort();
     this.seq = new Seq(this.p, gen, (aborted) => { this.dropCarry(aborted); this.p.setPose('stand'); this.seq = null; onEnd && onEnd(aborted); });
@@ -287,6 +312,13 @@ class Ronnie {
     emit('ronnieEvent', ev);
   }
   update(dt) {
+    if (this.frozen > 0) {
+      this.frozen -= dt;
+      if (!this.ice) { this.ice = new THREE.Mesh(new THREE.BoxGeometry(0.9, 2.0, 0.7), new THREE.MeshLambertMaterial({ color: 0x9fe8ff, transparent: true, opacity: 0.5 })); (G.dynamicRoot || G.scene).add(this.ice); (G.decor ||= []).push(this.ice); }
+      this.ice.visible = true; this.ice.position.copy(this.p.root).add(V(0, 1.0, 0));
+      if (this.frozen <= 0) { this.ice.visible = false; this.say('Th-th-thawed. W-w-where was I?'); this.status = 'Helping'; }
+      return;
+    }
     if (this.boost > 0) { this.boost -= dt; if (this.boost <= 0) this.say("M-m-monster's w-worn off."); }
     this.seq?.update(dt);
     // Carried items follow his hands
@@ -295,7 +327,7 @@ class Ronnie {
     if (this.p.hidden) {
       this.hiddenTimer -= dt;
       if (this.hiddenTimer <= 0) {
-        this.p.hidden = false; this.p.root.copy(FIX.staffDoor).add(V(0, 0, 0.5)); this.p.state = 'stand';
+        this.p.hidden = false; this.p.root.copy(this.reappearAt || FIX.staffDoor).add(V(0, 0, 0.5)); this.reappearAt = null; this.p.state = 'stand';
         for (let i = 0; i < 7; i++) { this.p.p[i].copy(this.p.root); this.p.o[i].copy(this.p.root); }
         this.say(pick(LINES.ronnie.back)); this.status = 'Helping';
         this.nextEvent = rand(8, 15);
@@ -307,6 +339,7 @@ class Ronnie {
       const mon = G.items.find((it) => it.drink === 'monster' && !it.held && !it.frozen && it.pos.distanceTo(this.p.p[PELVIS]) < 0.9);
       if (mon) { mon.remove(); this.boost = 45; this.status = 'MONSTER POWER (actually useful)'; this.say('M-M-MANGO LOCO! I c-can see through t-time, Lewis!', 3); sfx.good(); emit('ronnieMonster'); }
     }
+    if (this.wrestle) { if (this.p.state === 'ragdoll') { this.wrestle = null; G.shift.hint = ''; } else { this.updateWrestle(dt); return; } }
     if (this.seq || this.p.state === 'ragdoll' || this.p.state === 'getup') return;
     this.status = this.boost > 0 ? 'MONSTER POWER (actually useful)' : 'Helping';
     if (this.boost > 0) {
@@ -326,11 +359,15 @@ class Ronnie {
 }
 
 // ---------------------------------------------------------------- Ian
+// Ian: a big lad (about Noah's size), white skin, grey hair, full camo every single shift.
+export function makeIanPerson(x, z, opts = {}) {
+  return new Person(Object.assign({ kind: 'ian', name: 'Ian', tag: 'Ian (Dad)', label: 'Ian', x, z, camo: true, hat: 'camo', skin: IAN_LOOK.skin, hair: IAN_LOOK.hair, scale: IAN_LOOK.scale, wide: IAN_LOOK.wide, heavy: IAN_LOOK.heavy, prop: propRod(), bubbleColor: '#e8e8d0', walkSpeed: 0.95 }, opts));
+}
 class Ian {
   constructor() {
     const t = tableById('ian');
     this.seat = t.seatList[0];
-    this.p = new Person({ kind: 'ian', name: 'Ian', tag: 'Ian (Dad)', label: 'Ian', x: this.seat.pos.x, z: this.seat.pos.z, camo: true, hat: 'camo', scale: 1.0, wide: 1.15, heavy: 1.4, prop: propRod(), bubbleColor: '#e8e8d0' });
+    this.p = makeIanPerson(this.seat.pos.x, this.seat.pos.z);
     this.p.sitAt(this.seat);
     this.meter = 8; this.angryLater = 0; this.lastPint = 0; this.cooldownTalk = 0;
     this.lineTimer = rand(5, 10); this.activity = null; this.seq = null;
@@ -345,11 +382,12 @@ class Ian {
       label: () => {
         if (G.talk) return null;
         if (this.quizActive) return G.player.isCrouched() ? 'Help Dad with the quiz' : 'Help Dad with the quiz (crouch!)';
-        if (this.cooldownTalk > 0) return null;
+        if (this.cooldownTalk > 0 && !this.boss) return null;
         return G.player.isCrouched() ? '"Dad, sit down" talk' : 'Talk to Dad (crouch down first)';
       },
       action: () => {
         if (!G.player.isCrouched()) { this.say('Lewy, I\'m not talking to your belt buckle. Come down here.', true); return; }
+        if (this.boss) { emit('bossTalk'); return; }
         if (this.quizActive) return this.startQuizTalk();
         this.startTalk();
       },
@@ -445,6 +483,7 @@ class Ian {
   update(dt) {
     if (this.melted) return;
     this.seq?.update(dt);
+    if (this.boss) return;
     this.cooldownTalk -= dt;
     const cfg = G.shift.cfg;
     let rate = cfg.ianRate;
@@ -695,6 +734,7 @@ export function regularsCheer(text) {
 // ---------------------------------------------------------------- setup / update
 export function spawnStaff() {
   G.chef = makeChef();
+  if (G.shift.cfg.noStaff) { G.regulars = []; G.ronnie = null; G.ian = null; G.hollie = null; G.shift.hollieAt = Infinity; return; }
   G.regulars = makeRegulars();
   G.ronnie = new Ronnie();
   G.ian = new Ian();

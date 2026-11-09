@@ -64,6 +64,10 @@ export class Person {
   buildMesh(o) {
     const s = this.scale, w = this.wide;
     this.group = new THREE.Group();
+    if (o.costume === 'ghost') { o.shirt = 0xf5f5f5; o.trousers = 0xf5f5f5; o.bald = true; o.skin = 0xf5f5f5; }
+    if (o.costume === 'skeleton') { o.shirt = 0x111111; o.trousers = 0x111111; o.skin = 0xeeeeee; o.bald = true; }
+    if (o.costume === 'witch') { o.shirt = 0x2a0a3a; o.trousers = 0x111111; o.skin = 0x9ccc65; }
+    if (o.costume === 'pumpkin') { o.shirt = 0xff8f00; }
     const skin = mat(o.skin ?? pick(SKIN));
     const shirtMat = o.camo ? new THREE.MeshLambertMaterial({ map: camoTexture() }) : mat(o.shirt ?? 0x3366aa);
     const trouserMat = o.camo ? shirtMat : mat(o.trousers ?? 0x2b2b3b);
@@ -93,6 +97,28 @@ export class Person {
       hat.scale.setScalar(this.headR); hat.position.y = this.headR * 0.75; this.head.add(hat);
       const brim = new THREE.Mesh(G_('brim', () => new THREE.CylinderGeometry(1.6, 1.6, 0.08, 12)), shirtMat);
       brim.scale.setScalar(this.headR); brim.position.y = this.headR * 0.5; this.head.add(brim);
+    }
+    if (o.beard) {
+      const beard = new THREE.Mesh(G_('beard', () => new THREE.SphereGeometry(1, 8, 5, 0, Math.PI * 2, Math.PI * 0.55, Math.PI * 0.45)), mat(o.beard));
+      beard.scale.set(this.headR * 0.95, this.headR * 1.05, this.headR * 0.95); beard.position.z = this.headR * 0.12; this.head.add(beard);
+    }
+    if (o.hatType === 'santa') {
+      const hat = new THREE.Mesh(G_('santa', () => new THREE.ConeGeometry(1, 1.6, 10)), mat(0xd32f2f));
+      hat.scale.setScalar(this.headR * 0.9); hat.position.y = this.headR * 1.3; hat.rotation.z = 0.3; this.head.add(hat);
+      const pom = new THREE.Mesh(G_('pom', () => new THREE.SphereGeometry(1, 6, 4)), mat(0xffffff));
+      pom.scale.setScalar(this.headR * 0.22); pom.position.set(-this.headR * 0.45, this.headR * 1.95, 0); this.head.add(pom);
+      const rim = new THREE.Mesh(G_('rim', () => new THREE.TorusGeometry(1, 0.25, 5, 12)), mat(0xffffff));
+      rim.scale.setScalar(this.headR * 0.9); rim.rotation.x = Math.PI / 2; rim.position.y = this.headR * 0.6; this.head.add(rim);
+    }
+    if (o.hatType === 'witch') {
+      const hat = new THREE.Mesh(G_('witch', () => new THREE.ConeGeometry(1, 2.2, 10)), mat(0x111111));
+      hat.scale.setScalar(this.headR * 0.85); hat.position.y = this.headR * 1.6; this.head.add(hat);
+      const brim = new THREE.Mesh(G_('wbrim', () => new THREE.CylinderGeometry(1.7, 1.7, 0.06, 12)), mat(0x111111));
+      brim.scale.setScalar(this.headR); brim.position.y = this.headR * 0.65; this.head.add(brim);
+    }
+    if (o.costume === 'pumpkin') {
+      const pk = new THREE.Mesh(G_('pumpkin', () => new THREE.SphereGeometry(1, 10, 8)), mat(0xff8f00));
+      pk.scale.set(this.headR * 1.25, this.headR * 1.05, this.headR * 1.25); this.head.add(pk);
     }
     if (o.headband) { const hb = new THREE.Mesh(G_('hb', () => new THREE.TorusGeometry(1, 0.1, 4, 12)), mat(o.headband)); hb.scale.setScalar(this.headR * 1.02); hb.rotation.x = Math.PI / 2; hb.position.y = this.headR * 0.35; this.head.add(hb); }
     if (o.glasses) { const gl = new THREE.Mesh(G_('gl', () => new THREE.BoxGeometry(1, 0.25, 0.1)), mat(0x111111)); gl.scale.setScalar(this.headR); gl.position.set(0, this.headR * 0.15, this.headR * 0.95); this.head.add(gl); }

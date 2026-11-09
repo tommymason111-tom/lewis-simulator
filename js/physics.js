@@ -29,6 +29,18 @@ function dishMesh(dish) {
     case 'kids': for (let i = 0; i < 4; i++) add(sph, 0xf2c14e, -0.05 + i * 0.035, 0.025, 0, 0.45, 0.35, 0.5); break;
     case 'oysters': for (let i = 0; i < 5; i++) { const a = (i / 5) * Math.PI * 2; add(geo.oyster, 0xc9c9c0, Math.cos(a) * 0.07, 0.02, Math.sin(a) * 0.07, 1, 0.35, 0.8); } break;
     case 'pancakes': for (let i = 0; i < 3; i++) add(new THREE.CylinderGeometry(0.06, 0.06, 0.015, 12), 0xe0b060, 0, 0.02 + i * 0.017, 0); break;
+    case 'cake': {
+      add(new THREE.CylinderGeometry(0.1, 0.1, 0.08, 14), 0xf8bbd0, 0, 0.05, 0);
+      add(new THREE.CylinderGeometry(0.102, 0.102, 0.015, 14), 0xffffff, 0, 0.09, 0);
+      g.userData.flames = [];
+      for (let i = 0; i < 5; i++) {
+        const a = (i / 5) * Math.PI * 2;
+        add(new THREE.CylinderGeometry(0.005, 0.005, 0.05, 4), 0x90caf9, Math.cos(a) * 0.06, 0.12, Math.sin(a) * 0.06);
+        const f = new THREE.Mesh(new THREE.ConeGeometry(0.008, 0.025, 5), new THREE.MeshBasicMaterial({ color: 0xffa000 }));
+        f.position.set(Math.cos(a) * 0.06, 0.155, Math.sin(a) * 0.06); g.add(f); g.userData.flames.push(f);
+      }
+      break;
+    }
     case 'salad': for (let i = 0; i < 6; i++) add(sph, i % 2 ? 0x5bbf4a : 0xe53935, rand(-0.05, 0.05), 0.03, rand(-0.05, 0.05), 0.5, 0.4, 0.5); break;
     default: add(sph, c, 0, 0.03, 0, 1, 0.5, 1);
   }
@@ -72,7 +84,12 @@ export class Item {
     this.age = 0; this.servedTo = null;
     this.lastHitBy = null;
     let mesh;
-    if (kind === 'plate') { mesh = dishMesh(opts.dish); this.r = 0.13; this.half = 0.03; this.cls = 'plate'; this.breakable = true; }
+    if (opts.mesh) {
+      mesh = opts.mesh; this.r = opts.r ?? 0.08; this.half = opts.half ?? this.r; this.mass = opts.mass ?? 1; this.bounce = opts.bounce ?? 0.3;
+      this.cls = opts.cls || kind; this.breakable = !!opts.breakable; this.floating = !!opts.floating;
+      if (opts.friction !== undefined) this.friction = opts.friction;
+      if (opts.gravity !== undefined) this.gravity = opts.gravity;
+    } else if (kind === 'plate') { mesh = dishMesh(opts.dish); this.r = 0.13; this.half = 0.03; this.cls = 'plate'; this.breakable = true; }
     else if (kind === 'drink') { mesh = drinkMesh(opts.drink); this.r = 0.07; this.half = 0.08; this.cls = opts.drink === 'monster' ? 'can' : 'glass'; this.breakable = opts.drink !== 'monster'; }
     else if (kind === 'ball') {
       mesh = new THREE.Mesh(geo.ball, new THREE.MeshLambertMaterial({ color: 0xffffff, flatShading: true }));
@@ -155,21 +172,22 @@ export class Item {
     this.age += dt;
     if (this.ttl !== undefined) { this.ttl -= dt; if (this.ttl <= 0) { this.remove(); return; } }
     if (this.dead) return;
+    if (this.onUpdate && this.onUpdate(dt)) { this.sync(); return; }
     if (this.held || this.frozen || this.sleeping) { this.sync(); return; }
     if (this.floating) { this.pos.y += Math.sin(this.age * 2) * 0.0008; this.sync(); return; }
     const grav = G.shift?.rules?.lowGravity ? GRAVITY * 0.3 : GRAVITY;
-    this.vel.y -= grav * dt;
+    this.vel.y -= grav * dt * (this.gravity ?? 1);
     const speed = this.vel.length();
     // Sub-step fast objects so they don't tunnel through thin walls.
-    const steps = Math.min(6, Math.max(1, Math.ceil((speed * dt) / (this.r * 0.8))));
+    const steps = Math.min(14, Math.max(1, Math.ceil((speed * dt) / (Math.max(this.r, 0.04) * 0.8))));
     let maxImpact = 0, ground = false, tag = null;
     for (let s = 0; s < steps; s++) {
       this.pos.addScaledVector(this.vel, dt / steps);
-      const res = collideSphere(this.pos, this.vel, this.r, this.bounce, this.cls === 'ball' ? 0.985 : 0.8);
+      const res = collideSphere(this.pos, this.vel, this.r, this.bounce, this.friction ?? (this.cls === 'ball' ? 0.985 : 0.8));
       if (res.impact > maxImpact) { maxImpact = res.impact; tag = res.tag; }
       ground = ground || res.ground;
     }
-    if (maxImpact > 0.5) emit('itemImpact', this, maxImpact, tag);
+    if (maxImpact > 0.5 || (tag && this.reportAll)) emit('itemImpact', this, maxImpact, tag);
     if (this.dead) return;
     const butter = G.shift?.rules?.butterFingers;
     if (this.breakable && maxImpact > (butter ? 1.2 : 3.6)) { this.smash(); return; }
@@ -189,7 +207,7 @@ export class Item {
       const axis = this.spin.clone().normalize();
       this.mesh.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(axis, ang));
     }
-    if (ground && this.vel.lengthSq() < 0.004 && this.cls !== 'ball') { this.vel.set(0, 0, 0); this.sleeping = true; emit('itemRest', this); }
+    if (ground && this.vel.lengthSq() < 0.004 && this.cls !== 'ball' && !this.noSleep) { this.vel.set(0, 0, 0); this.sleeping = true; emit('itemRest', this); }
     if (this.cls === 'ball' && ground && this.vel.lengthSq() < 0.0004) this.vel.set(0, 0, 0);
     // Fell out of the world
     if (this.pos.y < -5 || Math.abs(this.pos.x) > 40 || Math.abs(this.pos.z) > 40) { if (this.cls === 'ball') { this.pos.set(0, 1, 0); this.vel.set(0, 0, 0); } else { this.remove(); return; } }

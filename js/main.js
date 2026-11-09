@@ -1,22 +1,26 @@
 // Boot: renderer, menus, WebXR session, main loop.
 import * as THREE from 'three';
 import { G, loadSave, writeSave, on, emit } from './state.js';
-import { SHIFTS, MODES, UPGRADES, ACHIEVEMENTS } from './data.js';
-import { buildWorld, updateWorld, setTimeOfDay } from './world.js';
-import { createPlayer, setupInput, setupTouch, attachHands, releasePointer } from './player.js';
+import { SHIFTS, MODES, UPGRADES, ACHIEVEMENTS, COSMETICS, FRIENDS } from './data.js';
+import { buildWorld, updateWorld, setTimeOfDay, setMixedReality } from './world.js';
+import { takePhoto, loadPhotos } from './toys.js';
+import { initVoices, renderStudio } from './voice.js';
+import { startReplay, updateReplay, hasReplay } from './replay.js';
+import { hasUpgrade } from './state.js';
+import { createPlayer, setupInput, setupTouch, attachHands, releasePointer, applyCosmetics } from './player.js';
 import { initHUD, setVRHud, showPanel, hidePanel, updateHUD } from './hud.js';
 import { startShift, updateGame, renderPeople, endShift, resultsSummary, cfgFor } from './game.js';
 import { initAudio, sfx, setAmbience } from './audio.js';
 
 const $ = (id) => document.getElementById(id);
-let xrSupported = false;
+let xrSupported = false, arSupported = false;
 let pendingShift = null;
 
 function init() {
   loadSave();
   window.LEWIS = G; // handy for debugging from the browser console
   const canvas = $('c');
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -47,11 +51,13 @@ function init() {
 
   if (navigator.xr && navigator.xr.isSessionSupported) {
     navigator.xr.isSessionSupported('immersive-vr').then((ok) => { xrSupported = ok; renderMenu(); }).catch(() => {});
+    navigator.xr.isSessionSupported('immersive-ar').then((ok) => { arSupported = ok; }).catch(() => {});
   }
 
   on('requestPause', () => { if (G.mode === 'playing') pause(); });
   on('shiftEnded', () => showResults());
 
+  initVoices();
   renderMenu();
   showScreen('menu');
 
@@ -66,11 +72,15 @@ function init() {
       G.rig.position.set(Math.sin(menuT) * 5, 0, 2 + Math.cos(menuT) * 3);
       G.rig.rotation.set(0, menuT * 0.6 + Math.PI * 0.1, 0);
       G.camera.position.set(0, 2.1, 0); G.camera.rotation.set(-0.12, 0, 0);
+    } else if (G.mode === 'replay') {
+      if (!updateReplay(dt)) { G.mode = 'results'; showResults(); }
     } else if (G.xr) vrPanelInput();
     if (G.mode !== 'menu') updateHUD(0);
     renderPeople();
     updateWorld(performance.now() / 1000);
     renderer.render(G.scene, G.camera);
+    if (G.photoRequest) takePhoto();
+    if (!G.xr && G.mode === 'playing' && hasUpgrade('pad') && G.ronnie && !G.ronnie.p.hidden) ronnieCam(renderer);
   });
 }
 
@@ -99,8 +109,11 @@ function renderMenu() {
       <span class="day">${sh.day}</span><b>${sh.name}</b><small>${locked ? '🔒 Finish the previous shift' : sh.twist}</small>
       ${best ? `<em>Best: £${best.tips.toFixed(2)} · ${best.stars.toFixed(1)}★</em>` : ''}</button>`;
   });
-  html += `</div><h3>Other modes</h3><div class="grid">`;
-  for (const m of Object.values(MODES)) {
+  const card = (m) => { const best = save.best[m.id]; return `<button class="card" data-shift="${m.id}"><span class="day">${m.day}</span><b>${m.name}</b><small>${m.twist}</small>${best && m.chaos ? `<em>Best: ${best.chaos}</em>` : ''}</button>`; };
+  html += `</div><h3>Mini-games</h3><div class="grid">${['pubcup', 'penalties', 'trickshots', 'fivek', 'datenight', 'showdown'].map((k) => card(MODES[k])).join('')}</div>`;
+  html += `<h3>Seasonal shifts</h3><div class="grid">${['christmas', 'halloween', 'bbq'].map((k) => card(MODES[k])).join('')}</div>`;
+  html += `<h3>Other modes</h3><div class="grid">`;
+  for (const m of ['sandbox', 'gentle', 'chaos', 'special'].map((k) => MODES[k])) {
     const best = save.best[m.id];
     html += `<button class="card" data-shift="${m.id}"><span class="day">${m.day}</span><b>${m.name}</b><small>${m.twist}</small>${best && m.chaos ? `<em>Best: ${best.chaos}</em>` : ''}</button>`;
   }
@@ -108,6 +121,10 @@ function renderMenu() {
     <div class="row">
       <button class="btn" id="bUpgrades">Staff room (upgrades)</button>
       <button class="btn" id="bAch">Achievements</button>
+      <button class="btn" id="bWardrobe">Wardrobe</button>
+      <button class="btn" id="bPhotos">Photos</button>
+      <button class="btn" id="bVoices">Voice studio</button>
+      <button class="btn" id="bCredits">Credits</button>
       <button class="btn" id="bSettings">Settings</button>
       <button class="btn" id="bHelp">How to play</button>
     </div>
@@ -118,6 +135,10 @@ function renderMenu() {
   $('bUpgrades').onclick = () => panel('upgrades');
   $('bAch').onclick = () => panel('ach');
   $('bSettings').onclick = () => panel('settings');
+  $('bWardrobe').onclick = () => panel('wardrobe');
+  $('bPhotos').onclick = () => panel('photos');
+  $('bVoices').onclick = () => panel('voices');
+  $('bCredits').onclick = () => panel('credits');
   $('bHelp').onclick = () => panel('help');
 }
 
@@ -134,6 +155,26 @@ function panel(which) {
       const u = UPGRADES.find((x) => x.id === b.dataset.up);
       if (G.save.bank >= u.cost && !G.save.upgrades[u.id]) { G.save.bank -= u.cost; G.save.upgrades[u.id] = true; writeSave(); initAudio(); sfx.cash(); renderMenu(); panel('upgrades'); }
     });
+  } else if (which === 'wardrobe') {
+    const sel = Object.assign({ apron: 'apron-green', shirt: 'shirt-white', hat: 'hat-none' }, G.save.cosmetics || {});
+    const owned = G.save.owned || {};
+    p.innerHTML = `<h3>Wardrobe · £${(G.save.bank || 0).toFixed(2)} to spend</h3><p>Look down to see your apron and shirt. Take a selfie with the disposable camera to see your hat.</p><div class="grid">` + COSMETICS.map((c) => {
+      const has = c.cost === 0 || owned[c.id], on = sel[c.slot] === c.id;
+      return `<button class="card" data-cos="${c.id}" ${!has && G.save.bank < c.cost ? 'disabled' : ''}><span class="day">${c.slot.toUpperCase()}</span><b>${c.name}</b><em>${on ? '✔ Wearing' : has ? 'Tap to wear' : '£' + c.cost}</em></button>`;
+    }).join('') + '</div>';
+    p.querySelectorAll('[data-cos]').forEach((b) => b.onclick = () => {
+      const c = COSMETICS.find((x) => x.id === b.dataset.cos);
+      G.save.owned ||= {}; G.save.cosmetics ||= {};
+      if (c.cost && !G.save.owned[c.id]) { if (G.save.bank < c.cost) return; G.save.bank -= c.cost; G.save.owned[c.id] = true; initAudio(); sfx.cash(); }
+      G.save.cosmetics[c.slot] = c.id; writeSave(); applyCosmetics(); renderMenu(); panel('wardrobe');
+    });
+  } else if (which === 'photos') {
+    const photos = loadPhotos();
+    p.innerHTML = '<h3>Photos (disposable camera)</h3>' + (photos.length ? '<div class="grid">' + photos.map((u, i) => `<a href="${u}" download="oysterfleet-${i + 1}.jpg"><img src="${u}" style="width:100%;border-radius:10px;border:3px solid #e8c96a"></a>`).join('') + '</div><p class="foot">Tap a photo to download it.</p>' : '<p>No photos yet. Grab the yellow disposable camera from the host stand and press USE (trigger in VR, G on keyboard). Turn it round for a selfie.</p>');
+  } else if (which === 'voices') {
+    renderStudio(p);
+  } else if (which === 'credits') {
+    p.innerHTML = creditsHTML();
   } else if (which === 'ach') {
     p.innerHTML = '<h3>Achievements</h3><ul class="ach">' + Object.entries(ACHIEVEMENTS).map(([id, a]) => `<li class="${G.save.achievements[id] ? 'got' : ''}">${G.save.achievements[id] ? '🏆' : '🔒'} <b>${a.name}</b>: ${a.desc}</li>`).join('') + '</ul>';
   } else if (which === 'settings') {
@@ -160,6 +201,7 @@ function panel(which) {
         <tr><td>Grab / drop</td><td>Grip (either hand)</td><td>Left click (right hand), Q (left hand)</td><td>GRAB</td></tr>
         <tr><td>Throw</td><td>Swing + release grip</td><td>Right click, or flick the mouse and click</td><td>THROW</td></tr>
         <tr><td>Talk / use</td><td>A or trigger</td><td>E (hold for pour/wipe)</td><td>TALK</td></tr>
+        <tr><td>Use held item (camera, sauce, extinguisher, mic)</td><td>Trigger</td><td>G or middle click</td><td>USE</td></tr>
         <tr><td>Kick the football</td><td>Swing a controller low and fast</td><td>F</td><td>KICK</td></tr>
         <tr><td>Header</td><td>Lean your head into the ball</td><td>F when the ball is high</td><td>KICK</td></tr>
         <tr><td>Sprint</td><td>Click left stick</td><td>Shift</td><td>RUN</td></tr>
@@ -178,11 +220,13 @@ function choose(id) {
   $('chooser').innerHTML = `<div class="inner small">
     <h2>${cfg.day} · ${cfg.name}</h2><p>${cfg.twist}</p>
     ${xrSupported ? '<button class="btn big" id="bVR">🥽 Enter VR</button>' : ''}
+    ${arSupported ? '<button class="btn big" id="bMR">🛋 Mixed reality (the pub in your living room)</button>' : ''}
     <button class="btn big" id="bFlat">${G.touch ? '📱 Play with touch controls' : '🖥 Play on this screen'}</button>
     <button class="btn" id="bBack">Back</button>
     ${!xrSupported ? '<p class="foot">VR needs the Quest browser (or another WebXR browser) over https.</p>' : ''}</div>`;
   showScreen('chooser');
   if ($('bVR')) $('bVR').onclick = () => enterVR(id);
+  if ($('bMR')) $('bMR').onclick = () => enterVR(id, true);
   $('bFlat').onclick = () => playFlat(id);
   $('bBack').onclick = () => { showScreen('menu'); G.mode = 'menu'; };
 }
@@ -195,11 +239,13 @@ function playFlat(id) {
   if (!G.touch) $('c').requestPointerLock?.();
 }
 
-async function enterVR(id) {
+async function enterVR(id, mixed = false) {
   try {
     attachHands(); // create controller grips before the session so we catch their 'connected' events
-    const session = await navigator.xr.requestSession('immersive-vr', { optionalFeatures: ['local-floor', 'bounded-floor'] });
+    const session = await navigator.xr.requestSession(mixed ? 'immersive-ar' : 'immersive-vr', { optionalFeatures: ['local-floor', 'bounded-floor'] });
+    G.mr = mixed;
     session.addEventListener('end', () => {
+      if (G.mr) { setMixedReality(false); G.mr = false; }
       G.xr = false; setVRHud(false); hidePanel();
       G.camera.position.set(0, 2.05, 0); G.camera.rotation.set(0, 0, 0);
       toMenu();
@@ -260,14 +306,18 @@ function nextShiftId() {
 function showResults() {
   const r = resultsSummary();
   const next = nextShiftId();
-  if (G.xr) { prevBtns = null; showPanel(r.title, r.lines, `${next ? 'A: next shift   ·   ' : ''}B: replay   ·   Y: menu`); return; }
+  if (G.shift.credits) r.lines.push('🧾 Credits roll as a bar tab: see Credits in the main menu.');
+  if (G.xr) { prevBtns = null; showPanel(r.title, r.lines, `${next ? 'A: next shift · ' : ''}B: replay · ${hasReplay() ? 'X: replay throw · ' : ''}Y: menu`); return; }
   $('results').innerHTML = `<div class="inner small"><h2>${r.title}</h2>${r.lines.map((l) => `<p>${l}</p>`).join('')}
     ${next ? '<button class="btn big" id="rNext">Next shift</button>' : ''}
-    <button class="btn" id="rReplay">Replay</button><button class="btn" id="rMenu">Menu</button></div>`;
+    ${hasReplay() ? '<button class="btn" id="rTheatre">🎬 Replay best throw</button>' : ''}
+    ${G.shift.credits ? `<div class="credits">${creditsHTML()}</div>` : ''}
+    <button class="btn" id="rReplay">Replay shift</button><button class="btn" id="rMenu">Menu</button></div>`;
   showScreen('results');
   if ($('rNext')) $('rNext').onclick = () => { showScreen(null); startShift(next); if (!G.touch) $('c').requestPointerLock?.(); };
   $('rReplay').onclick = () => { showScreen(null); startShift(G.shiftId); if (!G.touch) $('c').requestPointerLock?.(); };
   $('rMenu').onclick = toMenu;
+  if ($('rTheatre')) $('rTheatre').onclick = () => { showScreen(null); $('hud').style.display = 'none'; startReplay(); };
 }
 
 // VR: answer panels with controller buttons
@@ -291,8 +341,32 @@ function vrPanelInput() {
     if (edge('R4') && next) { hidePanel(); startShift(next); }
     else if (edge('R5') || (edge('R4') && !next)) { hidePanel(); startShift(G.shiftId); }
     else if (edge('L5')) exitToMenu();
+    else if (edge('L4') && hasReplay()) { hidePanel(); startReplay(); }
   }
   prevBtns = now;
+}
+
+// Credits roll as a bar tab listing everyone in the friend group.
+function creditsHTML() {
+  const rows = [['Lewis', 'Very tall waiter', 'Head bonks'], ['Ronnie', 'The "helper"', '6 smashed plates'], ['Hollie', 'Girlfriend, 5K runner', '1 protein bar'], ['Ian', 'Dad. Full camo.', '14 pints + 1 fish'],
+    ...FRIENDS.map((f) => [f, 'Customer / cameo', 'Tap water (no tip)']), ['Chef', 'Head chef', 'Shouting'], ['Big Dave, Sandra, Old Pete', 'Regulars', 'OHHHH!']];
+  return `<div class="tab"><h3>THE OYSTERFLEET · BAR TAB</h3><table>${rows.map(([n, r, i]) => `<tr><td><b>${n}</b></td><td>${r}</td><td>${i}</td></tr>`).join('')}</table><p>TOTAL: one week survived. Service not included. Mind your head on the way out.</p></div>`;
+}
+
+// Ronnie Cam (better order pad upgrade, flat screen): picture-in-picture of what Ronnie is ruining.
+let rcam = null;
+function ronnieCam(renderer) {
+  if (!rcam) rcam = new THREE.PerspectiveCamera(60, 1.5, 0.1, 60);
+  const r = G.ronnie.p;
+  rcam.position.copy(r.root).add(r.fwd.clone().multiplyScalar(2.2)).add(new THREE.Vector3(0, 2.4, 0));
+  rcam.lookAt(r.p[2]);
+  const w = Math.min(260, window.innerWidth * 0.3), h = w / 1.5;
+  const x = window.innerWidth - w - 12, y = 12;
+  renderer.setScissorTest(true);
+  renderer.setScissor(x, y, w, h); renderer.setViewport(x, y, w, h);
+  renderer.render(G.scene, rcam);
+  renderer.setScissorTest(false);
+  renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
 }
 
 init();

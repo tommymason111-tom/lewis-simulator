@@ -2,15 +2,24 @@
 import * as THREE from 'three';
 import { G, V, rand, pick, chance, clamp, on, emit, writeSave, FIXED } from './state.js';
 import { SHIFTS, MODES, SPECIAL_RULES, ACHIEVEMENTS, LINES } from './data.js';
-import { FIX, setGardenOpen, setTimeOfDay, tvScreen, inGarden } from './world.js';
+import { FIX, setGardenOpen, setTimeOfDay, tvScreen, inGarden, setFunctionOpen, setCarParkOpen, setMixedReality } from './world.js';
+import { resetEvents, updateEvents, abortEvent } from './events.js';
+import { initToys, updateToys } from './toys.js';
+import { setupMode, updateMode, modeHudLines, modeSummary, resetBoss, startBoss, bossFailed, bossActive, clearDecor } from './modes.js';
+import { resetReplay, recordReplay } from './replay.js';
+import { textTexture } from './textures.js';
+import { Person } from './people.js';
+import { FRIENDS, LINES as LN } from './data.js';
+import { applyCosmetics } from './player.js';
 import { Item, spawnPlate, spawnDrink, updateItems } from './physics.js';
 import { stepPeople, peopleInteractions, PELVIS, HEAD } from './people.js';
 import * as S from './serving.js';
 import { spawnStaff, updateNPCs, regularsCheer, registerSpecialTableInteractables } from './npcs.js';
 import { resetPlayer, updatePlayer, releasePointer } from './player.js';
-import { toast, updateHUD, showPanel, hidePanel } from './hud.js';
+import { toast, updateHUD, showPanel, hidePanel, clearToasts } from './hud.js';
 import { sfx, speak, setAmbience } from './audio.js';
 import { review } from './serving.js';
+G.hudExtra = () => (G.shift ? modeHudLines() : []);
 
 let accumulator = 0;
 
@@ -37,6 +46,8 @@ export function startShift(id) {
   const cfg = cfgFor(id);
   G.shiftId = id;
   // Clear previous shift
+  abortEvent();
+  clearToasts();
   S.clearServing();
   for (const p of G.people.slice()) p.destroy();
   for (const it of G.items.slice()) it.remove();
@@ -45,11 +56,14 @@ export function startShift(id) {
   G.interactables = [];
   G.talk = null;
   G.ronnie = G.ian = G.hollie = G.chef = null; G.regulars = [];
+  clearDecor(); G.seasonUpdate = null; resetBoss(); G.kegOut = false;
   G.shift = newShift(cfg);
   G.groupsRef = S.groups;
   G.timeScale = 1; G.slowmo = 0; G.time = 0;
   S.initTables();
-  S.openTables(cfg.tables.filter((t) => cfg.garden || t < 9));
+  S.openTables(cfg.tables.filter((t) => t < 9 || (t <= 10 && cfg.garden) || (t === 11 && cfg.functionRoom)));
+  setFunctionOpen(!!cfg.functionRoom || !!cfg.sandbox);
+  setCarParkOpen(false);
   S.registerServingInteractables();
   registerSpecialTableInteractables();
   setGardenOpen(!!cfg.garden);
@@ -57,6 +71,7 @@ export function startShift(id) {
   // Football (unlocked from Tuesday)
   G.ball = null;
   if (cfg.id !== 'mon') G.ball = new Item('ball', { pos: V(0.5, 0.3, 4.6) });
+  if (G.ball) G.ball.reportAll = true;
   // Golden oyster
   const found = Object.keys(G.save.oysters).length;
   if (found < 7) {
@@ -73,12 +88,25 @@ export function startShift(id) {
   if (cfg.fishingClub) S.spawnGroup('pensioner', { size: 5, camo: true, special: 'club' });
   if (cfg.sandbox) { addToyBox(); }
   resetPlayer(V(-5.6, 0, 5.0), 0.3);
+  applyCosmetics();
+  initToys();
+  resetEvents();
+  resetReplay();
+  setupMode();
+  if (G.eomMat) { G.eomMat.map = G.save.eom ? textTexture(['EMPLOYEE OF THE MONTH', 'LEWIS', '(Ronnie has been moved', 'to the bins)'], { w: 512, h: 288, size: 30, bg: '#3e2723', border: '#d4af37' }) : G.eomDefault; G.eomMat.needsUpdate = true; }
+  if (G.mr) setMixedReality(true);
+  if (G.save.achievements.pubCup) pubCupPhoto();
   G.mode = 'playing';
   toast(`${cfg.day}: ${cfg.name}. ${cfg.twist}`, 6);
   if (s().specialRule) toast(`Today's special rule: ${s().specialRule.name}. ${s().specialRule.desc}`, 6);
   emit('shiftStart', cfg);
 }
 const s = () => G.shift;
+
+function pubCupPhoto() {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.9), new THREE.MeshBasicMaterial({ map: textTexture(['PUB CUP WINNERS', 'Lewis · Ronnie · Hollie', '(Old Pete demands a rematch)'], { w: 512, h: 320, size: 32, bg: '#1d6b3a', border: '#d4af37' }) }));
+  m.position.set(-9.88, 1.6, -11); m.rotation.y = Math.PI / 2; G.scene.add(m); (G.decor ||= []).push(m);
+}
 
 function addToyBox() {
   G.interactables.push({
@@ -134,7 +162,7 @@ on('thrown', (p, speed) => {
   if (sh.cfg.gentle) { toast('You threw someone. Gentle Giant failed!', 4); endShift('gentleFail'); }
 });
 on('knocked', (p, imp, source) => {
-  if (source === 'grab' || source === 'trip' || source === 'chef') return;
+  if (['grab', 'trip', 'chef', 'dive'].includes(source)) return;
   addChaos(6, source);
   if (source === 'ball') headline(`WAITER VOLLEYS ${KIND_NAME(p)}`, 3 + imp.length() * 0.2);
 });
@@ -269,21 +297,52 @@ on('itemImpact', (it, impact, tag) => {
 function updateGoals() {
   const b = G.ball; if (!b || b.held) return;
   const sh = s();
-  const gl = FIX.goal;
-  let scored = null;
-  if (G.gardenOpen && b.pos.x > gl.x - 0.05 && b.pos.x < gl.x + 0.6 && Math.abs(b.pos.z - gl.z) < gl.w / 2 - 0.2 && b.pos.y < gl.h) scored = 'BIN GOAL';
+  let scored = null, idx = -1;
+  if (G.gardenOpen) FIX.goals.forEach((gl, i) => {
+    const inside = gl.dir > 0 ? (b.pos.x > gl.x - 0.05 && b.pos.x < gl.x + 0.6) : (b.pos.x < gl.x + 0.05 && b.pos.x > gl.x - 0.6);
+    if (inside && Math.abs(b.pos.z - gl.z) < gl.w / 2 - 0.2 && b.pos.y < gl.h) { scored = 'BIN GOAL'; idx = i; }
+  });
   if (Math.abs(b.pos.x - FIX.toilets.x) < 0.45 && b.pos.z > 7.65 && b.pos.y < 1.9 && b.vel.z > 2) scored = 'GOAL! (goal-line technology: toilet door)';
   if (scored && (!sh.lastGoal || sh.time - sh.lastGoal > 3)) {
     sh.lastGoal = sh.time; sh.goals++;
     G.save.goldenBoot = (G.save.goldenBoot || 0) + 1;
     sfx.whistle(); sfx.cheer();
     addChaos(10, 'goal');
-    if (sh.time - sh.tvGoalTime < 12) { addTips(20); toast('SCORED WITH THE TELLY! Massive tip bonus: +£20!', 4); headline('WAITER SCORES IN SYNC WITH TV, PUB ERUPTS', 9); }
-    else toast(`⚽ ${scored}!`, 2.5);
-    regularsCheer('GOOOAL!');
-    if (scored === 'BIN GOAL') setTimeout(() => { if (G.ball === b) { b.pos.set(18, 0.3, 0); b.vel.set(0, 0, 0); } }, 800);
+    emit('goal', idx);
+    if (!sh.cfg.minigame) {
+      if (sh.time - sh.tvGoalTime < 12) { addTips(20); toast('SCORED WITH THE TELLY! Massive tip bonus: +£20!', 4); headline('WAITER SCORES IN SYNC WITH TV, PUB ERUPTS', 9); }
+      else toast(`⚽ ${scored}!`, 2.5);
+      commentary();
+      regularsCheer('GOOOAL!');
+      if (idx >= 0) setTimeout(() => { if (G.ball === b && !b.held) { b.pos.set(16, 0.3, 0); b.vel.set(0, 0, 0); } }, 800);
+    }
   }
 }
+function commentary() { const l = pick(LN.commentary); toast('🎙 "' + l + '"', 2); speak(l, 'commentator', true); }
+
+on('addTips', (n) => { if (s()) addTips(n); });
+on('addChaos', (n, why) => { if (s()) addChaos(n, why); });
+on('achieve', (id) => achieve(id));
+on('headline', (t, sc) => headline(t, sc));
+on('regularsCheer', () => regularsCheer());
+on('endShiftNow', (r) => { if (G.mode === 'playing') endShift(r); });
+on('keepie', (n) => { if (n === 10 || n === 20) commentary(); });
+on('worldie', () => commentary());
+
+// All 7 golden oysters: the whole group turns up to raise a pint to Lewis.
+on('golden', () => {
+  if (Object.keys(G.save.oysters).length !== 7) return;
+  const p = G.player.pos, crew = [];
+  FRIENDS.forEach((name, i) => {
+    const a = (i / FRIENDS.length) * Math.PI * 2;
+    const f = new Person({ kind: 'friend', name, tag: name, label: name, x: p.x + Math.cos(a) * 1.6, z: p.z + Math.sin(a) * 1.6, shirt: [0x2a9d8f, 0xe76f51, 0x264653, 0xf4a261, 0x8ab17d, 0x6d597a][i] });
+    f.faceTowards(p); f.immune = true; f.setPose('speech');
+    setTimeout(() => f.say(pick(['LEWIS! LEGEND!', 'To the tall lad!', 'Golden oysters, golden boy!', 'CHEERS BIG MAN!'])), 400 + i * 300);
+    crew.push(f);
+  });
+  regularsCheer('LEWIS! LEWIS! LEWIS!');
+  setTimeout(() => crew.forEach((f) => f.destroy()), 12000);
+});
 
 // ---------------------------------------------------------------- tutorial
 const K = () => G.xr ? { crouch: 'B', act: 'A', grab: 'grip', kick: 'swing a controller low' } : G.touch ? { crouch: 'CROUCH', act: 'TALK', grab: 'GRAB', kick: 'KICK' } : { crouch: 'C', act: 'E', grab: 'click', kick: 'F' };
@@ -302,10 +361,10 @@ let tutIdx = 0, tutFlag = false, tutTime = 0;
 for (const evName of ['groupFollowing', 'groupSeated', 'orderTaken', 'spiked', 'poured', 'delivered', 'paid']) on(evName, () => { if (TUT[tutIdx]?.ev === evName) tutFlag = true; });
 function updateTutorial(dt) {
   const sh = s();
-  if (!sh.cfg.tutorial) { sh.hint = ''; return; }
+  if (!sh.cfg.tutorial) { sh.tutHint = ''; return; }
   const step = TUT[tutIdx];
-  if (!step) { sh.hint = ''; return; }
-  sh.hint = step.hint();
+  if (!step) { sh.tutHint = ''; return; }
+  sh.tutHint = step.hint();
   tutTime += dt;
   if (tutFlag || (step.done && step.done()) || (step.time && tutTime > step.time)) { tutIdx++; tutFlag = false; tutTime = 0; if (TUT[tutIdx]) sfx.good(); }
 }
@@ -338,6 +397,11 @@ export function updateGame(rawDt) {
   updateTV(dt);
   updateGoals();
   updateTutorial(rawDt);
+  updateToys(dt);
+  updateEvents(dt);
+  updateMode(dt);
+  recordReplay(dt);
+  G.seasonUpdate?.(dt);
 
   // Spawning
   sh.nextSpawn -= dt;
@@ -350,7 +414,7 @@ export function updateGame(rawDt) {
   sh.chatTimer -= dt;
   if (sh.chatTimer <= 0) { sh.chatTimer = rand(60, 100); toast('📱 ' + pick(LINES.groupChat), 3); }
   // Sunday finale
-  if (sh.cfg.finale && !sh.finale && sh.timeLeft < 60) { sh.finale = true; toast('FINALE: Ian\'s whole fishing club is here. Keep Dad calm for 60 seconds!', 5); G.ian?.say('LEWY! THE LADS ARE HERE! ROUND FOR THE CLUB, LEWY!', true); }
+  if (sh.cfg.finale && !sh.finale && sh.timeLeft < 90) { sh.finale = true; startBoss(false); }
   setAmbience(Math.min(1, G.people.length / 25));
   updateHUD(rawDt);
   if (sh.timeLeft <= 0 && sh.cfg.duration !== Infinity) endShift('time');
@@ -363,6 +427,8 @@ export function renderPeople() { for (const p of G.people) p.render(); }
 export function endShift(reason) {
   const sh = s();
   if (!sh || sh.ended) return;
+  if (reason === 'time' && bossActive()) { bossFailed(); if (sh.cfg.minigame === 'showdown') reason = 'bossFail'; }
+  sh.modeLines = modeSummary();
   sh.ended = true; sh.reason = reason;
   G.mode = 'results';
   releasePointer();
@@ -382,6 +448,11 @@ export function endShift(reason) {
     if (!G.save.best[key] || score > G.save.best[key].score) G.save.best[key] = { score, tips: sh.tips, stars: sh.rating(), chaos: Math.round(sh.chaos) };
     const idx = SHIFTS.findIndex((x) => x.id === key);
     if (idx >= 0 && success && G.save.unlocked < idx + 2) G.save.unlocked = Math.min(SHIFTS.length, idx + 2);
+    if (idx >= 0 && success) {
+      (G.save.weekStars ||= {})[key] = Math.max(G.save.weekStars[key] || 0, sh.rating());
+      if (key === 'sun') { sh.credits = true; achieve('fullWeek'); }
+      if (SHIFTS.every((x) => (G.save.weekStars[x.id] || 0) >= 4.5) && !G.save.eom) { G.save.eom = true; sh.eomNew = true; }
+    }
   }
   writeSave();
   emit('shiftEnded', sh);
@@ -389,7 +460,7 @@ export function endShift(reason) {
 
 export function resultsSummary() {
   const sh = s();
-  const titles = { time: sh.cfg.sandbox ? 'Lock-in over' : 'Shift complete!', meltdown: 'IAN HAS KICKED OFF', gentleFail: 'Not so gentle...', quit: 'Shift abandoned', 'quit-sandbox': 'Lock-in over' };
+  const titles = { bossFail: 'Ian is still kicking off', time: sh.cfg.sandbox ? 'Lock-in over' : 'Shift complete!', meltdown: 'IAN HAS KICKED OFF', gentleFail: 'Not so gentle...', quit: 'Shift abandoned', 'quit-sandbox': 'Lock-in over' };
   const lines = [];
   lines.push(`📰 "${sh.headlineText}"`);
   if (sh.reason === 'meltdown') lines.push('Cutscene: Lewis stands on a chair and apologises to the entire pub. Ian is still shouting about carp.');
@@ -402,6 +473,9 @@ export function resultsSummary() {
   if (sh.criticResult) lines.push(sh.criticResult === 'rave' ? 'Secret food critic: RAVE REVIEW' : 'Secret food critic: not impressed');
   if (sh.throws === 0 && !sh.cfg.chaos && sh.tablesPaid) lines.push('Gentle Giant: zero throws. Lovely.');
   else if (sh.throws > 5 && !sh.cfg.chaos) lines.push('The manager has written you up. Again.');
+  if (sh.distance) lines.push(`Hollie's fitness watch: ${Math.round(sh.distance / 0.95).toLocaleString()} steps (1 Lewis step = 0.95 m)`);
+  (sh.modeLines || []).forEach((l) => lines.push(l));
+  if (sh.eomNew) lines.push('⭐ EMPLOYEE OF THE MONTH! Your face is going up on the wall. Ronnie\'s photo has been moved.');
   if (sh.achievements.length) lines.push('Achievements: ' + sh.achievements.map((a) => ACHIEVEMENTS[a].name).join(', '));
   return { title: titles[sh.reason] || 'Shift over', lines };
 }

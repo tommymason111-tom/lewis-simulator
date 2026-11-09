@@ -4,7 +4,7 @@ import { G, V, rand, randi, pick, chance, clamp, weighted, emit, on, hasUpgrade 
 import { TABLE_DEFS, FIX } from './world.js';
 import { Person, PELVIS, HEAD } from './people.js';
 import { Item, spawnPlate, spawnDrink } from './physics.js';
-import { CUSTOMER_TYPES, DISHES, DRINKS, LINES, FRIENDS, REVIEWS, MAIN_DISHES, iconFor, isDrink, nameFor } from './data.js';
+import { CUSTOMER_TYPES, DISHES, DRINKS, LINES, FRIENDS, FRIEND_LOOKS, REVIEWS, MAIN_DISHES, iconFor, isDrink, nameFor } from './data.js';
 import { dynamicTexture, roundRect } from './textures.js';
 import { sfx, speak } from './audio.js';
 
@@ -111,11 +111,16 @@ export function spawnGroup(typeKey, opts = {}) {
     const isKid = type.kids && i >= 2;
     const camo = rules.everyoneIan || opts.camo;
     const name = type.friends ? friendNames[i % friendNames.length] : '';
+    const look = FRIEND_LOOKS[name] || {};
+    const season = G.shift?.cfg?.season;
+    const costume = season === 'halloween' ? pick(['ghost', 'skeleton', 'witch', 'pumpkin', null]) : null;
     const p = new Person({
       kind: 'customer', name, tag: name || undefined, label: name,
+      wide: look.wide, heavy: look.heavy, costume,
+      hatType: season === 'christmas' && chance(0.7) ? 'santa' : (costume === 'witch' ? 'witch' : undefined),
       x: FIX.spawn.x + rand(-1.5, 1.5), z: FIX.spawn.z + rand(-0.3, 0.3),
-      scale: isKid ? 0.62 : (type.scale || 1) * rand(0.94, 1.04), headScale: isKid ? 1.25 : 1,
-      shirt: camo ? undefined : pick(type.colors), camo, hat: camo ? 'camo' : undefined,
+      scale: isKid ? 0.62 : (look.scale || (type.scale || 1) * rand(0.94, 1.04)), headScale: isKid ? 1.25 : 1,
+      shirt: camo ? undefined : opts.colors ? pick(opts.colors) : (season === 'christmas' ? pick([0xc62828, 0x2e7d32, 0xffffff]) : pick(type.colors)), camo, hat: camo ? 'camo' : undefined,
       hair: typeKey === 'pensioner' ? 0xdddddd : undefined, bald: typeKey === 'pensioner' && chance(0.4),
       glasses: typeKey === 'critic' || (typeKey === 'pensioner' && chance(0.5)),
       walkSpeed: type.walk * rand(0.9, 1.1), kitNumber: type.fan ? String(randi(1, 11)) : undefined, shortSleeves: type.fan || type.stag,
@@ -249,6 +254,7 @@ export function spikeTickets() {
 }
 
 function updateKitchen(dt) {
+  reconcileKitchen(dt);
   for (let i = kitchenQueue.length - 1; i >= 0; i--) {
     const k = kitchenQueue[i];
     k.t -= dt;
@@ -264,6 +270,23 @@ function updateKitchen(dt) {
   }
 }
 export function requeueDish(dish, table) { kitchenQueue.push({ dish, table, t: rand(6, 9) }); }
+export function delayKitchen(sec) { kitchenQueue.forEach((k) => { k.t += sec; }); }
+
+// Re-cook any dish that a table still needs but no longer exists anywhere (smashed, stolen by a dog...).
+let reconcileTimer = 0;
+function reconcileKitchen(dt) {
+  reconcileTimer -= dt;
+  if (reconcileTimer > 0) return;
+  reconcileTimer = 2;
+  const need = {}, have = {}, firstTable = {};
+  for (const t of G.tables) {
+    if (!t.group || (t.state !== 'waiting' && t.state !== 'eating')) continue;
+    for (const id of t.needs) if (!isDrink(id)) { need[id] = (need[id] || 0) + 1; firstTable[id] ??= t.id; }
+  }
+  for (const it of G.items) if (it.kind === 'plate' && !it.dead && !it.frozen) have[it.dish] = (have[it.dish] || 0) + 1;
+  for (const k of kitchenQueue) have[k.dish] = (have[k.dish] || 0) + 1;
+  for (const id in need) for (let n = have[id] || 0; n < need[id]; n++) requeueDish(id, firstTable[id]);
+}
 
 function freePassSlot() {
   for (let x = FIX.pass.x0; x <= FIX.pass.x1; x += 0.38) {
@@ -339,6 +362,7 @@ function payBill(g) {
   tip *= Math.pow(0.6, g.thrown) * Math.pow(0.85, g.wrong);
   if (t.order.every((x) => x === 'water' || !isDrink(x)) && t.order.includes('water') && !t.order.some((x) => isDrink(x) && x !== 'water')) tip = 0;
   if (g.special === 'hollie') tip = 0;
+  tip *= g.tipBonus || 1;
   tip += g.worldies * 5;
   tip = Math.round(tip * 2) / 2;
   const stars = starsFor(g);
@@ -410,6 +434,7 @@ export function runnerCaught(g) {
 function afterGetUp(m) {
   const g = m.group;
   if (!g || g.dead) return;
+  if (g.evac) { m.walkTo(V(rand(-9, -2), 0, rand(9.4, 10.8))); return; }
   if (g.state === 'leaving' || g.state === 'runner') { m.walkTo(FIX.spawn.clone().add(V(rand(-2, 2), 0, 0.3)), () => removeMember(m), g.state === 'runner'); return; }
   if (g.typeKey === 'karen' || g.critic && g.thrown > 0) { if (g.table || g.state === 'queue') { groupSay(g, pick(LINES.karen)); walkout(g); return; } }
   if (g.state === 'queue' || g.state === 'arriving') { walkToQueue(g); return; }
@@ -464,8 +489,8 @@ export function registerServingInteractables() {
     action: spikeTickets,
   });
   const pourSpot = (pos, drink, label, hold) => G.interactables.push({
-    pos, radius: 1.9, label: () => (G.ronnie?.blockingTaps && drink === 'pint' ? 'Ronnie is stuck under a keg! Help him first' : label), hold: () => hold,
-    action: () => { if (G.ronnie?.blockingTaps && drink === 'pint') return; const it = spawnDrink(drink, pos.clone().add(V(0.15, 0.12, 0))); if (drink === 'pint') sfx.pour(); else sfx.grab(); G.player.give(it); emit('poured', it); },
+    pos, radius: 1.9, label: () => (G.kegOut && drink === 'pint' ? 'The keg has run out! Change it in the cellar hatch' : G.ronnie?.blockingTaps && drink === 'pint' ? 'Ronnie is stuck under a keg! Help him first' : label), hold: () => hold,
+    action: () => { if ((G.ronnie?.blockingTaps || G.kegOut) && drink === 'pint') return; const it = spawnDrink(drink, pos.clone().add(V(0.15, 0.12, 0))); if (drink === 'pint') sfx.pour(); else sfx.grab(); G.player.give(it); emit('poured', it); },
     onHoldTick: (dt, hand) => G.player.pourTilt && G.player.pourTilt(dt, hand),
   });
   pourSpot(FIX.taps, 'pint', 'Pour a pint (hold)', 0.9);
@@ -491,7 +516,7 @@ export function updateServing(dt) {
   for (const g of groups.slice()) {
     if (g.dead) continue;
     const live = g.members.filter((m) => !m.dead);
-    if (!live.length) continue;
+    if (!live.length || g.evac) continue;
     // Patience
     let drain = 0;
     switch (g.state) {
@@ -532,7 +557,7 @@ export function updateServing(dt) {
     // Type flavour
     if (g.type.loud && chance(dt * 0.08) && g.table) groupSay(g, pick(LINES.stag), 'customer', { dur: 2.5 });
     if (g.typeKey === 'pensioner' && chance(dt * 0.02) && g.table) groupSay(g, pick(LINES.pensioner));
-    if (g.type.friends && chance(dt * 0.03) && g.table) { const m = pick(live); m.say(pick(LINES.friends[m.name] || LINES.greet)); }
+    if (g.type.friends && chance(dt * 0.03) && g.table) { const m = pick(live); const line = pick(LINES.friends[m.name] || LINES.greet); m.say(line); speak(line, m.name); }
   }
   // Table icons
   for (const t of G.tables) {

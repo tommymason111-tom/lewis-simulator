@@ -25,14 +25,23 @@ export const FIX = {
   kitchenDoor: V(0.5, 0, -7.75),
   staffDoor: V(8.9, 0, -7.75),
   toilets: V(4, 0, 7.75),
-  gardenDoor: V(10, 0, -1.25),
+  gardenDoor: V(10, 0, -5.45),
+  functionDoor: V(-8.2, 0, -8),
+  carParkGate: V(22.25, 0, 5.7),
+  vanBack: V(26, 0, -5.3),
+  pool: { x: -5.5, z: -11, w: 2.0, d: 1.0, top: 0.8 },
+  pockets() { const { x, z, w, d, top } = this.pool; const out = []; for (const sx of [-1, 0, 1]) for (const sz of [-1, 1]) out.push(V(x + sx * w / 2, top, z + sz * d / 2)); return out; },
+  dart: { y: 1.73, z: -12.2 },
+  mic: V(-0.25, 1.6, -12.55),
+  jukebox: V(0.3, 1.1, -9.15),
+  goals: [{ x: 21.4, z: 0, w: 2.4, h: 1.2, dir: 1, name: 'BIN GOAL (EAST)' }, { x: 10.7, z: 0, w: 2.4, h: 1.2, dir: -1, name: 'BIN GOAL (WEST)' }],
+  penaltySpot: V(18.2, 0, 0),
   ianSeat: V(9.45, 0, 5.0),
   hollieTable: V(6.2, 0, 6.2),
-  goal: { x: 21.4, z: 0, w: 2.4, h: 1.2 },
-  pondC: V(17.5, 0, 5.5), pondR: 1.8,
-  lapPath: [V(12, 0, -6.5), V(20.5, 0, -6.5), V(20.5, 0, 6.8), V(12, 0, 6.8)],
+  pondC: V(19.7, 0, 6.5), pondR: 1.15,
+  lapPath: [V(11.2, 0, -5.4), V(21.2, 0, -5.4), V(21.2, 0, 4.6), V(11.2, 0, 5.4)],
   goldenSpots: [
-    V(-9.5, 2.06, 1.8), V(1.8, 0.05, -3.4), V(-9.6, 1.6, -3.0), V(1.5, 0.62, 6.4), V(21.4, 0.25, -6.5),
+    V(-9.5, 2.06, 1.8), V(1.8, 0.05, -3.4), V(-9.6, 1.6, -3.0), V(1.5, 0.62, 6.4), V(21.4, 0.25, -6.5), V(-5.5, 0.88, -11.3), V(31.4, 0.3, 5), V(-0.2, 0.3, -13.5),
     V(-4, 2.78, -7.8), V(6.7, 1.05, -7.6), V(5.8, 0.05, 1.6), V(8.9, 0.8, 5.0), V(-2.5, 1.15, 6.3),
   ],
 };
@@ -47,8 +56,9 @@ export const TABLE_DEFS = [
   { id: 6, x: -1.6, z: 1.6, w: 0.9, d: 0.9, seats: 2 },
   { id: 7, x: 1.8, z: 1.6, w: 1.1, d: 1.1, seats: 4 },
   { id: 8, x: 5.8, z: 1.6, w: 2.6, d: 1.0, seats: 8 },
-  { id: 9, x: 14, z: -4.5, w: 1.8, d: 0.8, seats: 4, garden: true, picnic: true },
-  { id: 10, x: 14, z: 3.5, w: 1.8, d: 0.8, seats: 4, garden: true, picnic: true },
+  { id: 9, x: 13.5, z: -6.6, w: 1.8, d: 0.8, seats: 4, garden: true, picnic: true },
+  { id: 10, x: 17.5, z: -6.6, w: 1.8, d: 0.8, seats: 4, garden: true, picnic: true },
+  { id: 11, x: -3.2, z: -9.4, w: 2.2, d: 0.9, seats: 6, functionRoom: true },
   { id: 'ian', x: 8.9, z: 5.0, w: 0.8, d: 0.8, seats: 1, special: true },
   { id: 'hollie', x: 6.2, z: 6.2, w: 0.8, d: 0.8, seats: 2, special: true },
 ];
@@ -80,7 +90,7 @@ function solidBox(x0, y0, z0, x1, y1, z1, material, tag) {
   return s;
 }
 
-let gardenDoor = null, gardenSign = null;
+let gardenDoor = null, gardenSign = null, functionDoor = null, functionSign = null, carParkGate = null, dartTex = null;
 const lights = {};
 export let tvScreen = null;
 
@@ -126,7 +136,14 @@ export function buildWorld() {
 
   const H = PUB.h, T = 0.2;
   // North wall with kitchen hatch (x 3.6..7.0, y 1.0..1.9)
-  solidBox(-10, 0, -8 - T, 3.6, H, -8, wallMat);
+  solidBox(-10, 0, -8 - T, -8.8, H, -8, wallMatS);
+  solidBox(-7.6, 0, -8 - T, 3.6, H, -8, wallMat);
+  solidBox(-8.8, 1.9, -8 - T, -7.6, H, -8, wallMatS, 'header');
+  G.beams.push({ min: V(-8.8, 1.9, -8.4), max: V(-7.6, H, -7.8), name: 'function room door' });
+  functionDoor = solidBox(-8.8, 0, -8.15, -7.6, 1.9, -8.05, mat(0x6a1b9a), 'door');
+  functionDoor.mesh.userData.noMerge = true;
+  functionSign = labelSprite('FUNCTION ROOM: CLOSED', { bg: '#6a1b9a', size: 26, scale: 0.16, w: 512 });
+  functionSign.position.set(-8.2, 1.5, -7.9); scene.add(functionSign);
   solidBox(3.6, 0, -8 - T, 7.0, 1.0, -8, wallMatS);
   solidBox(3.6, 1.9, -8 - T, 7.0, H, -8, wallMatS);
   solidBox(7.0, 0, -8 - T, 10, H, -8, wallMatS);
@@ -141,13 +158,13 @@ export function buildWorld() {
   // West wall
   solidBox(-10 - T, 0, -8, -10, H, 8, wallMat);
   // East wall with garden door gap (z -2..-0.5)
-  solidBox(10, 0, -8, 10 + T, H, -2, wallMatS);
-  solidBox(10, 0, -0.5, 10 + T, H, 8, wallMat);
-  solidBox(10, 1.95, -2, 10 + T, H, -0.5, wallMatS, 'header');
-  G.beams.push({ min: V(9.8, 1.95, -2), max: V(10.4, H, -0.5), name: 'garden door' });
-  gardenDoor = solidBox(10.02, 0, -2, 10.18, 1.95, -0.5, mat(0x3c5e3a), 'door');
+  solidBox(10, 0, -8, 10 + T, H, -6.2, wallMatS);
+  solidBox(10, 0, -4.7, 10 + T, H, 8, wallMat);
+  solidBox(10, 1.95, -6.2, 10 + T, H, -4.7, wallMatS, 'header');
+  G.beams.push({ min: V(9.8, 1.95, -6.2), max: V(10.4, H, -4.7), name: 'garden door' });
+  gardenDoor = solidBox(10.02, 0, -6.2, 10.18, 1.95, -4.7, mat(0x3c5e3a), 'door');
   gardenSign = labelSprite('CLOSED', { bg: '#7a1d1d', size: 30, scale: 0.25 });
-  gardenSign.position.set(9.85, 1.5, -1.25); scene.add(gardenSign);
+  gardenSign.position.set(9.85, 1.5, -5.45); scene.add(gardenSign);
 
   // Beams with Mind Your Head signs
   const signTex = textTexture(['MIND YOUR HEAD'], { w: 512, h: 96, bg: '#f2d23c', color: '#111', size: 52, bold: true, font: 'Arial' });
@@ -233,7 +250,7 @@ export function buildWorld() {
   // Height chart joke on the wall
   const chart = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 2.2), new THREE.MeshBasicMaterial({
     map: textTexture(['LEWIS →', '(off the top)', '', '', 'Ronnie', '', 'Ian', '', 'Hollie'], { w: 128, h: 640, size: 18, bg: '#f5f0e0', color: '#333' }) }));
-  chart.position.set(9.88, 1.25, -5); chart.rotation.y = -Math.PI / 2; scene.add(chart);
+  chart.position.set(9.88, 1.25, -2.5); chart.rotation.y = -Math.PI / 2; scene.add(chart);
 
   // TV
   solidBox(-4.75, 1.87, -8, -3.25, 2.73, -7.8, mat(0x111111), 'tv');
@@ -253,17 +270,20 @@ export function buildWorld() {
   for (let i = 0; i < 4; i++) { const cake = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.12, 10), mat([0xf8bbd0, 0x6d4c41, 0xfff59d, 0xffffff][i])); cake.position.set(-2.8 + i * 0.2, 0.86, 6.3); scene.add(cake); }
   const trLabel = labelSprite('DESSERTS', { bg: '#ad1457', size: 30, scale: 0.13 });
   trLabel.position.set(-2.5, 1.25, 6.3); scene.add(trLabel);
-  solidBox(9.2, 0, -7.0, 9.9, 1.8, -6.2, mat(0x6a1b9a), 'fruit');
+  solidBox(9.2, 0, 1.6, 9.9, 1.8, 2.4, mat(0x6a1b9a), 'fruit');
   const fm = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.5), new THREE.MeshBasicMaterial({ map: textTexture(['🍒 🍋 🔔', 'FRUITS'], { w: 256, h: 192, size: 40, bg: '#ffeb3b', color: '#6a1b9a' }) }));
-  fm.position.set(9.19, 1.3, -6.6); fm.rotation.y = -Math.PI / 2; scene.add(fm);
+  fm.position.set(9.19, 1.3, 2.0); fm.rotation.y = -Math.PI / 2; scene.add(fm);
 
   // Golden oyster hall-of-fame + photo wall (decor)
   const photo = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.9), new THREE.MeshBasicMaterial({
     map: textTexture(['EMPLOYEE OF THE MONTH', '(Ronnie, somehow)'], { w: 512, h: 288, size: 34, bg: '#3e2723', border: '#d4af37' }) }));
   photo.position.set(-1.5, 1.6, 7.88); photo.rotation.y = Math.PI; scene.add(photo);
+  G.eomMat = photo.material; G.eomDefault = photo.material.map;
 
   buildTables();
   buildGarden();
+  buildCarPark();
+  buildFunctionRoom(wallMat, darkWood);
   buildStreet();
   defineZones();
   gardenDoor.mesh.userData.noMerge = true;
@@ -291,7 +311,7 @@ function mergeStatic() {
   remove.forEach((o) => o.parent.remove(o));
   for (const [m, geos] of byMat) {
     const merged = mergeGeometries(geos, false);
-    if (merged) G.scene.add(new THREE.Mesh(merged, m));
+    if (merged) { const mm = new THREE.Mesh(merged, m); G.scene.add(mm); (G.staticMeshes ||= []).push(mm); }
     else console.warn('merge failed for material', m);
   }
 }
@@ -310,6 +330,7 @@ function doorDecor(x, z, rot, label, color) {
 
 function buildTables() {
   const top = mat(0x6b3f1f), leg = mat(0x3b2412), chairM = mat(0x5d3a1a), bench = mat(0x8d6e4b);
+  [top, leg, chairM, bench].forEach((m) => { m.userData.mr = true; });
   for (const def of TABLE_DEFS) {
     const hw = def.w / 2, hd = def.d / 2, h = 0.76;
     def.top = h;
@@ -333,6 +354,7 @@ function buildTables() {
     else if (def.seats === 2) { add(def.x, def.z - hd - off); add(def.x, def.z + hd + off); }
     else if (def.seats === 4 && !def.picnic) { add(def.x, def.z - hd - off); add(def.x, def.z + hd + off); add(def.x - hw - off, def.z); add(def.x + hw + off, def.z); }
     else if (def.picnic) { for (const s of [-1, 1]) for (const k of [-0.45, 0.45]) add(def.x + k, def.z + s * (hd + 0.35)); }
+    else if (def.seats === 6) { for (const s of [-1, 1]) for (const k of [-0.75, 0, 0.75]) add(def.x + k, def.z + s * (hd + off)); }
     else if (def.seats === 8) {
       for (const s of [-1, 1]) for (const k of [-0.85, 0, 0.85]) add(def.x + k, def.z + s * (hd + off));
       add(def.x - hw - off, def.z); add(def.x + hw + off, def.z);
@@ -358,23 +380,34 @@ function buildTables() {
 
 function buildGarden() {
   const hedge = mat(0x2e5a2a), fence = mat(0x8d6e4b);
-  // Hedge east, fences north/south
-  solidBox(21.9, 0, -8, 22.6, 1.6, 8, hedge, 'hedge');
+  // Hedge east (with a gate to the car park), fences north/south
+  solidBox(21.9, 0, -8, 22.6, 1.6, 4.8, hedge, 'hedge');
+  solidBox(21.9, 0, 6.6, 22.6, 1.6, 8, hedge, 'hedge');
+  carParkGate = solidBox(22.15, 0, 4.8, 22.35, 1.3, 6.6, mat(0x6d4c41), 'gate');
+  carParkGate.mesh.userData.noMerge = true;
   solidBox(10, 0, -8.3, 22, 1.1, -8.05, fence, 'fence');
   solidBox(10, 0, 8.05, 22, 1.1, 8.3, fence, 'fence');
-  // Invisible tall walls to keep things in
+  // Invisible tall walls to keep balls in the garden
   addSolid(21.9, 1.6, -8.5, 23, 7, 8.5, 'invisible');
   addSolid(10, 1.1, -8.6, 22, 7, -8.05, 'invisible');
   addSolid(10, 1.1, 8.05, 22, 7, 8.6, 'invisible');
-  // Bin goal (posts + bar made of bins)
+  // Two bin goals (pitch runs east-west)
   const binM = mat(0x2e7d32), postM = mat(0xeeeeee);
-  const { x, z, w, h } = FIX.goal;
-  for (const s of [-1, 1]) solidBox(x - 0.25, 0, z + s * w / 2 - 0.25, x + 0.25, 1.0, z + s * w / 2 + 0.25, binM, 'post');
-  solidBox(x - 0.05, h, z - w / 2, x + 0.05, h + 0.1, z + w / 2, postM, 'post');
-  const net = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.25, side: THREE.DoubleSide }));
-  net.position.set(x + 0.35, h / 2, z); net.rotation.y = Math.PI / 2; G.scene.add(net);
-  const gl = labelSprite('BIN GOAL', { bg: '#2e7d32', size: 30, scale: 0.2 });
-  gl.position.set(x, 1.6, z); G.scene.add(gl);
+  for (const gl of FIX.goals) {
+    const { x, z, w, h, dir } = gl;
+    for (const s of [-1, 1]) solidBox(x - 0.25, 0, z + s * w / 2 - 0.25, x + 0.25, 1.0, z + s * w / 2 + 0.25, binM, 'post');
+    solidBox(x - 0.05, h, z - w / 2, x + 0.05, h + 0.1, z + w / 2, postM, 'post');
+    const net = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.25, side: THREE.DoubleSide }));
+    net.position.set(x + dir * 0.35, h / 2, z); net.rotation.y = Math.PI / 2; G.scene.add(net);
+    const l = labelSprite(gl.name, { bg: '#2e7d32', size: 30, scale: 0.2 });
+    l.position.set(x, 1.6, z); G.scene.add(l);
+  }
+  // Pitch lines
+  const lineM = new THREE.MeshBasicMaterial({ color: 0xeeeeee });
+  for (const [w, d, x, z] of [[10.6, 0.06, 16, -5], [10.6, 0.06, 16, 5], [0.06, 10, 16, 0]]) {
+    const l = new THREE.Mesh(new THREE.PlaneGeometry(w, d), lineM); l.rotation.x = -Math.PI / 2; l.position.set(x, 0.01, z); G.scene.add(l);
+  }
+  const spot = new THREE.Mesh(new THREE.CircleGeometry(0.1, 10), lineM); spot.rotation.x = -Math.PI / 2; spot.position.set(FIX.penaltySpot.x, 0.011, FIX.penaltySpot.z); G.scene.add(spot);
   // Duck pond
   const pond = new THREE.Mesh(new THREE.CircleGeometry(FIX.pondR, 20), new THREE.MeshLambertMaterial({ color: 0x3f7fbf, transparent: true, opacity: 0.85 }));
   pond.rotation.x = -Math.PI / 2; pond.position.set(FIX.pondC.x, 0.02, FIX.pondC.z); G.scene.add(pond);
@@ -382,30 +415,154 @@ function buildGarden() {
     const duck = new THREE.Group();
     const b = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 6), mat(0xffeb3b)); b.scale.set(1.3, 0.8, 1); duck.add(b);
     const hd = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), mat(0xffeb3b)); hd.position.set(0.12, 0.1, 0); duck.add(hd);
-    duck.position.set(FIX.pondC.x + Math.cos(i * 2) * 0.9, 0.08, FIX.pondC.z + Math.sin(i * 2) * 0.9);
+    duck.position.set(FIX.pondC.x, 0.08, FIX.pondC.z);
     duck.userData.phase = i * 2; duck.userData.noMerge = true; G.scene.add(duck);
     (G.ducks ||= []).push(duck);
   }
-  // Bins zone (big wheelie bins)
-  for (let i = 0; i < 2; i++) solidBox(12 + i * 0.85, 0, -7.9, 12.7 + i * 0.85, 1.0, -7.3, mat(0x37474f), 'bin');
+  // Bins (big wheelie bins on the south fence)
+  for (let i = 0; i < 2; i++) solidBox(12 + i * 0.85, 0, 7.3, 12.7 + i * 0.85, 1.0, 7.9, mat(0x37474f), 'bin');
   const bl = labelSprite('BINS', { bg: '#37474f', size: 30, scale: 0.15 });
-  bl.position.set(12.75, 1.4, -7.6); G.scene.add(bl);
+  bl.position.set(12.75, 1.4, 7.6); G.scene.add(bl);
+  // BBQ (used in the summer shift)
+  solidBox(15.2, 0, 7.2, 16.4, 0.9, 7.9, mat(0x222222), 'bbq');
   // Trees
-  for (const [tx, tz] of [[20.5, -7], [11, 7.2], [20.8, 7.2]]) {
+  for (const [tx, tz] of [[20.8, -7.2], [10.9, 7.3], [17.6, 7.4]]) {
     box(0.25, 2.2, 0.25, mat(0x5d4037), tx, 1.1, tz);
     const leaves = new THREE.Mesh(new THREE.IcosahedronGeometry(1.1, 0), mat(0x3e7a35)); leaves.position.set(tx, 2.9, tz); G.scene.add(leaves);
   }
-  // Ian's van parked beyond the hedge (visible over it)
+}
+
+function buildCarPark() {
+  const tarmac = new THREE.Mesh(new THREE.PlaneGeometry(11.4, 16), mat(0x4a4a4a));
+  tarmac.rotation.x = -Math.PI / 2; tarmac.position.set(28.3, 0.004, 0); G.scene.add(tarmac);
+  const lineM = new THREE.MeshBasicMaterial({ color: 0xf0f0f0 });
+  for (let i = 0; i < 5; i++) { const l = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 4), lineM); l.rotation.x = -Math.PI / 2; l.position.set(28 + i * 1.3, 0.01, -5.5); G.scene.add(l); }
+  // Ian's van (solid now: it's the finale arena centrepiece)
   const van = new THREE.Group();
   const body = new THREE.Mesh(new THREE.BoxGeometry(2, 1.9, 4.4), mat(0xf5f5f5)); body.position.y = 1.3; van.add(body);
   const cab = new THREE.Mesh(new THREE.BoxGeometry(1.95, 0.9, 1.0), mat(0x90caf9)); cab.position.set(0, 1.6, 2.3); van.add(cab);
+  for (const [wx, wz] of [[-1, -1.5], [1, -1.5], [-1, 1.6], [1, 1.6]]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.25, 10), mat(0x111111)); w.rotation.z = Math.PI / 2; w.position.set(wx, 0.35, wz); van.add(w); }
   for (let i = 0; i < 5; i++) { const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 3.5, 4), mat(0x222222)); rod.rotation.x = Math.PI / 2; rod.position.set(-0.8 + i * 0.4, 2.3, 0); van.add(rod); }
   const vl = labelSprite("IAN'S VAN", { bg: '#3b3f24', size: 30, scale: 0.3 });
   vl.position.set(0, 3.0, 0); van.add(vl);
-  van.position.set(25, 0, -2); G.scene.add(van);
+  van.position.set(26, 0, -2); G.scene.add(van);
+  addSolid(25, 0, -4.2, 27, 2.25, 0.8, 'van');
+  // Bait cooler at the back of the van
+  solidBox(25.6, 0, -4.9, 26.4, 0.5, -4.4, mat(0x1e88e5), 'cooler');
+  const cl = labelSprite('BAIT + COOLER', { bg: '#1e88e5', size: 26, scale: 0.12 });
+  cl.position.set(26, 0.9, -4.65); G.scene.add(cl);
+  // The skip (throw the fishing club in it)
+  solidBox(30.2, 0, 3.8, 32.6, 0.15, 6.2, mat(0xf9a825), 'skip-floor');
+  for (const [x0, z0, x1, z1] of [[30.2, 3.8, 32.6, 3.95], [30.2, 6.05, 32.6, 6.2], [30.2, 3.8, 30.35, 6.2], [32.45, 3.8, 32.6, 6.2]]) solidBox(x0, 0, z0, x1, 1.1, z1, mat(0xf9a825), 'skip');
+  const sl = labelSprite('SKIP', { bg: '#f9a825', color: '#222', size: 30, scale: 0.18 });
+  sl.position.set(31.4, 1.6, 5); G.scene.add(sl);
+  // Fences
+  solidBox(22.6, 0, -8.3, 34, 1.4, -8.05, mat(0x8d6e4b), 'fence');
+  solidBox(22.6, 0, 8.05, 34, 1.4, 8.3, mat(0x8d6e4b), 'fence');
+  solidBox(33.9, 0, -8.3, 34.2, 1.4, 8.3, mat(0x8d6e4b), 'fence');
+  addSolid(22.6, 1.4, -8.6, 34.5, 7, -8.05, 'invisible');
+  addSolid(22.6, 1.4, 8.05, 34.5, 7, 8.6, 'invisible');
+  addSolid(33.9, 1.4, -8.6, 34.6, 7, 8.6, 'invisible');
+  for (const x of [24, 32]) { box(0.1, 4, 0.1, mat(0x333333), x, 2, 7.8); }
 }
 
+function buildFunctionRoom(wallMat, darkWood) {
+  const H = PUB.h, T = 0.2;
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(11, 6), new THREE.MeshLambertMaterial({ map: woodTexture([5, 3]) }));
+  floor.rotation.x = -Math.PI / 2; floor.position.set(-4.5, 0.004, -11); G.scene.add(floor);
+  const ceil = new THREE.Mesh(new THREE.PlaneGeometry(11, 6), mat(0xf2e8d0));
+  ceil.rotation.x = Math.PI / 2; ceil.position.set(-4.5, H, -11); G.scene.add(ceil);
+  addSolid(-10, H, -14, 1, H + 0.5, -8, 'ceiling');
+  solidBox(-10, 0, -14 - T, 1, H, -14, wallMat);
+  solidBox(-10 - T, 0, -14, -10, H, -8, wallMat);
+  solidBox(1, 0, -14, 1 + T, H, -8.2, wallMat);
+  // Bunting
+  const cols = [0xe53935, 0xfdd835, 0x1e88e5, 0x43a047];
+  for (let i = 0; i < 22; i++) { const f = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.2, 3), mat(cols[i % 4])); f.rotation.x = Math.PI; f.position.set(-9.6 + i * 0.48, 2.5, -11); G.scene.add(f); }
+  const banner = new THREE.Mesh(new THREE.PlaneGeometry(3, 0.5), new THREE.MeshBasicMaterial({ map: textTexture(['FUNCTION ROOM'], { w: 512, h: 86, size: 52, bg: '#6a1b9a', color: '#fff59d' }) }));
+  banner.position.set(-4.5, 2.3, -13.88); G.scene.add(banner);
+  // Pool table
+  const { x, z, w, d } = FIX.pool;
+  solidBox(x - w / 2, 0, z - d / 2, x + w / 2, FIX.pool.top, z + d / 2, mat(0x1b5e20), 'pooltable');
+  const rail = mat(0x4e342e), r = 0.08, rh = FIX.pool.top + 0.06;
+  solidBox(x - w / 2 - r, 0, z - d / 2 - r, x + w / 2 + r, rh, z - d / 2, rail, 'cushion');
+  solidBox(x - w / 2 - r, 0, z + d / 2, x + w / 2 + r, rh, z + d / 2 + r, rail, 'cushion');
+  solidBox(x - w / 2 - r, 0, z - d / 2, x - w / 2, rh, z + d / 2, rail, 'cushion');
+  solidBox(x + w / 2, 0, z - d / 2, x + w / 2 + r, rh, z + d / 2, rail, 'cushion');
+  for (const p of FIX.pockets()) { const pk = new THREE.Mesh(new THREE.CircleGeometry(0.075, 10), mat(0x050505)); pk.rotation.x = -Math.PI / 2; pk.position.set(p.x, FIX.pool.top + 0.003, p.z); G.scene.add(pk); }
+  const pl = labelSprite('POOL', { bg: '#1b5e20', size: 30, scale: 0.15 });
+  pl.position.set(x, 1.5, z - d / 2 - 0.2); G.scene.add(pl);
+  // Dartboard
+  addSolid(-10.0, 1.48, FIX.dart.z - 0.25, -9.93, 1.98, FIX.dart.z + 0.25, 'dartboard');
+  dartTex = dynamicTexture(256, 256);
+  drawDartboard(dartTex.ctx); dartTex.tex.needsUpdate = true;
+  const board = new THREE.Mesh(new THREE.CircleGeometry(0.23, 32), new THREE.MeshBasicMaterial({ map: dartTex.tex }));
+  board.position.set(-9.925, FIX.dart.y, FIX.dart.z); board.rotation.y = Math.PI / 2; G.scene.add(board);
+  const oche = new THREE.Mesh(new THREE.PlaneGeometry(0.05, 1), new THREE.MeshBasicMaterial({ color: 0xd32f2f }));
+  oche.rotation.x = -Math.PI / 2; oche.position.set(-7.63, 0.01, FIX.dart.z); G.scene.add(oche);
+  const dl = labelSprite('DARTS (throw from the red line)', { bg: '#222', size: 24, scale: 0.12, w: 512 });
+  dl.position.set(-9.85, 2.25, FIX.dart.z); G.scene.add(dl);
+  // Karaoke stage + jukebox
+  solidBox(-1.4, 0, -13.9, 0.9, 0.16, -12.1, mat(0x311b92), 'stage');
+  box(0.03, 1.4, 0.03, mat(0x222222), -0.25, 0.86, -12.6);
+  const kl = labelSprite('KARAOKE', { bg: '#311b92', size: 30, scale: 0.16 });
+  kl.position.set(-0.25, 2.2, -13.6); G.scene.add(kl);
+  solidBox(0.3, 0, -9.6, 0.95, 1.4, -8.7, mat(0xad1457), 'jukebox');
+  const jb = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.4), new THREE.MeshBasicMaterial({ map: textTexture(['JUKEBOX', '♪ ♫ ♪'], { w: 256, h: 192, size: 36, bg: '#ffca28', color: '#ad1457' }) }));
+  jb.position.set(0.29, 1.05, -9.15); jb.rotation.y = -Math.PI / 2; G.scene.add(jb);
+  // Decor: Ronnie Simulator poster, school photo wall, fantasy league board, keepie record board
+  wallPoster(['RONNIE SIMULATOR', 'Coming soon', '(he is still', 'warming up)'], -9.88, 1.5, -9.2, Math.PI / 2, '#b71c1c');
+  wallPoster(['THE LADS · SCHOOL DAYS', 'Tommy · Harry H · Aidan', 'Noah · Oliver · Dylan', '+ a very tall Lewis'], -6, 1.6, -13.88, 0, '#3e2723');
+  wallPoster(['OYSTERFLEET FANTASY LEAGUE', '1. Noah  2. Tommy  3. Dylan', '4. Oliver  5. Aidan  6. Harry H', '7. Ronnie (picked himself)'], -2.8, 1.6, -13.88, 0, '#1e2b22');
+}
+
+function wallPoster(lines, x, y, z, rotY, bg) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.95), new THREE.MeshBasicMaterial({ map: textTexture(lines, { w: 512, h: 320, size: 32, bg, border: '#e8c96a' }) }));
+  m.position.set(x, y, z); m.rotation.y = rotY; G.scene.add(m);
+  return m;
+}
+
+const DART_SECTORS = [20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5];
+function drawDartboard(x) {
+  const c = 128;
+  x.fillStyle = '#111'; x.fillRect(0, 0, 256, 256);
+  const ring = (r0, r1, colA, colB) => {
+    for (let i = 0; i < 20; i++) {
+      const a0 = -Math.PI / 2 + (i - 0.5) * (Math.PI / 10), a1 = a0 + Math.PI / 10;
+      x.beginPath(); x.arc(c, c, r1, a0, a1); x.arc(c, c, r0, a1, a0, true); x.closePath();
+      x.fillStyle = i % 2 ? colB : colA; x.fill();
+    }
+  };
+  ring(0, 118, '#f5e6c8', '#111');
+  ring(100, 112, '#c62828', '#2e7d32');
+  ring(58, 68, '#c62828', '#2e7d32');
+  x.fillStyle = '#2e7d32'; x.beginPath(); x.arc(c, c, 14, 0, 7); x.fill();
+  x.fillStyle = '#c62828'; x.beginPath(); x.arc(c, c, 6, 0, 7); x.fill();
+  x.fillStyle = '#fff'; x.font = 'bold 12px Arial'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  DART_SECTORS.forEach((n, i) => { const a = -Math.PI / 2 + i * Math.PI / 10; x.fillText(n, c + Math.cos(a) * 123, c + Math.sin(a) * 123); });
+}
+// Score for a hit at local board coords (u right, v up) in metres from the bull.
+export function dartScore(u, v) {
+  const r = Math.hypot(u, v) / 0.23 * 118; // in texture px
+  if (r > 112) return { score: 0, label: 'Missed the board!' };
+  if (r < 6) return { score: 50, label: 'BULLSEYE!' };
+  if (r < 14) return { score: 25, label: 'Outer bull: 25' };
+  let a = Math.atan2(-v, u) + Math.PI / 2; // 0 at top, clockwise
+  a = ((a % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+  const n = DART_SECTORS[Math.round(a / (Math.PI / 10)) % 20];
+  if (r > 100) return { score: n * 2, label: `Double ${n}!` };
+  if (r > 58 && r < 68) return { score: n * 3, label: `Treble ${n}!` };
+  return { score: n, label: String(n) };
+}
+export function markDart(u, v) {
+  const x = dartTex.ctx, c = 128, k = 118 / 0.23;
+  x.fillStyle = '#ffeb3b'; x.beginPath(); x.arc(c + u * k, c - v * k, 3, 0, 7); x.fill();
+  dartTex.tex.needsUpdate = true;
+}
+export function clearDartboard() { drawDartboard(dartTex.ctx); dartTex.tex.needsUpdate = true; }
+
 function buildStreet() {
+
   // Keep the street enclosed
   addSolid(-12, 0, 11.2, 12, 7, 11.6, 'invisible');
   addSolid(-10.6, 0, 8, -10.2, 7, 11.6, 'invisible');
@@ -420,9 +577,41 @@ function defineZones() {
   const Z = (name, label, x0, y0, z0, x1, y1, z1, points, ach) => G.zones.push({ name, label, min: V(x0, y0, z0), max: V(x1, y1, z1), points, ach });
   Z('ballpit', 'Into the ball pit!', 0.7, 0, 5.8, 2.3, 1.2, 7.0, 30);
   Z('trolley', 'Into the dessert trolley!', -3.1, 0, 5.85, -1.9, 1.6, 6.75, 45, 'trolley');
-  Z('pond', 'Into the duck pond!', 15.7, -1, 3.7, 19.3, 0.6, 7.3, 45, 'pond');
-  Z('bins', 'BINNED!', 11.8, 0, -8, 13.8, 1.8, -7.0, 35);
-  Z('fruit', 'Into the fruit machine! JACKPOT!', 9.0, 0, -7.2, 10, 2, -6.0, 30);
+  Z('pond', 'Into the duck pond!', 18.5, -1, 5.3, 20.9, 0.6, 7.7, 45, 'pond');
+  Z('bins', 'BINNED!', 11.8, 0, 7.0, 13.8, 1.8, 8.0, 35);
+  Z('fruit', 'Into the fruit machine! JACKPOT!', 9.0, 0, 1.4, 10, 2, 2.6, 30);
+  Z('skip', 'INTO THE SKIP!', 30.2, -0.5, 3.8, 32.6, 1.6, 6.2, 40, 'skip');
+  Z('pooltable', 'Laid out on the pool table!', -6.5, 0.6, -11.5, -4.5, 1.6, -10.5, 25);
+  Z('stage', 'Thrown on stage! Encore!', -1.4, 0, -13.9, 0.9, 1.0, -12.1, 20);
+}
+
+export const LIGHTS = lights;
+// Mixed reality: hide the building, keep the furniture (tables in your living room).
+const mrHidden = [];
+export function setMixedReality(on) {
+  if (on) {
+    G.scene.traverse((o) => { if (o.isMesh && o.parent === G.scene && !o.material?.userData?.mr && (G.staticMeshes || []).includes(o)) { mrHidden.push(o); o.visible = false; } });
+    G.scene.traverse((o) => { if (o.isMesh && o.parent === G.scene && o.geometry?.type === 'PlaneGeometry' && !(G.staticMeshes || []).includes(o) && o.visible) { mrHidden.push(o); o.visible = false; } });
+    G.mrSavedBg = G.scene.background; G.scene.background = null; G.scene.fog.near = 999; G.scene.fog.far = 1000;
+  } else {
+    mrHidden.forEach((o) => { o.visible = true; }); mrHidden.length = 0;
+    if (G.mrSavedBg) G.scene.background = G.mrSavedBg; G.scene.fog.near = 30; G.scene.fog.far = 70;
+  }
+}
+export function setDim(on, level = 0.06) {
+  if (on) { if (!lights.saved) lights.saved = [lights.hemi.intensity, lights.amb.intensity, lights.sun.intensity]; lights.hemi.intensity = level; lights.amb.intensity = level / 2; lights.sun.intensity = level; }
+  else if (lights.saved) { [lights.hemi.intensity, lights.amb.intensity, lights.sun.intensity] = lights.saved; lights.saved = null; }
+}
+
+export function setFunctionOpen(open) {
+  G.functionOpen = open;
+  functionDoor.enabled = !open; functionDoor.mesh.visible = !open; functionSign.visible = !open;
+  buildNav();
+}
+export function setCarParkOpen(open) {
+  G.carParkOpen = open;
+  carParkGate.enabled = !open; carParkGate.mesh.visible = !open;
+  buildNav();
 }
 
 export function setGardenOpen(open) {
@@ -435,6 +624,7 @@ export function setGardenOpen(open) {
 
 // Time of day: hour 11..23
 export function setTimeOfDay(hour) {
+  lights.saved = null;
   const t = clamp((hour - 11) / 11, 0, 1);
   const day = new THREE.Color(0x87b5d9), dusk = new THREE.Color(0xf0905a), night = new THREE.Color(0x121a33);
   const c = t < 0.6 ? day.clone().lerp(dusk, t / 0.6) : dusk.clone().lerp(night, (t - 0.6) / 0.4);
@@ -529,8 +719,9 @@ export function collidePlayer(p, r) {
     hit = true;
   }
   // Hard world bounds
-  p.x = clamp(p.x, -9.75, G.gardenOpen ? 21.6 : 9.75);
-  p.z = clamp(p.z, -7.75, 11);
+  p.x = clamp(p.x, -9.75, G.carParkOpen ? 33.7 : G.gardenOpen ? 21.6 : 9.75);
+  p.z = clamp(p.z, G.functionOpen ? -13.75 : -7.75, 11);
+  if (p.z < -8 && p.x > 0.75) p.x = 0.75;
   if (p.x > 10.1 && (p.z > 7.75)) p.z = 7.75;
   return hit;
 }
@@ -545,7 +736,7 @@ export const inGarden = (p) => p.x > 10.2;
 export const inPub = (p) => p.x > -10 && p.x < 10 && p.z > -8 && p.z < 8;
 
 // --- Navigation grid + A* --------------------------------------------------
-const NAV = { x0: -10, z0: -8, cell: 0.4, cols: 80, rows: 48, blocked: null };
+const NAV = { x0: -10, z0: -14.2, cell: 0.4, cols: 112, rows: 64, blocked: null };
 function cellOf(x, z) { return [Math.floor((x - NAV.x0) / NAV.cell), Math.floor((z - NAV.z0) / NAV.cell)]; }
 function cellCenter(i, j) { return V(NAV.x0 + (i + 0.5) * NAV.cell, 0, NAV.z0 + (j + 0.5) * NAV.cell); }
 function isBlocked(i, j) { return i < 0 || j < 0 || i >= NAV.cols || j >= NAV.rows || NAV.blocked[j * NAV.cols + i]; }
@@ -560,7 +751,9 @@ export function buildNav() {
     const inPubArea = c.x > -10 && c.x < 10 && c.z > -8 && c.z < 8;
     const inGardenArea = c.x > 10 && c.x < 21.9 && c.z > -8 && c.z < 8;
     const inStreet = c.z > 8 && c.z < 11.2 && c.x > -10.2 && c.x < 10.2;
-    if (!inPubArea && !inGardenArea && !inStreet) b = true;
+    const inFunction = c.x > -10 && c.x < 1 && c.z > -14 && c.z < -8;
+    const inCarPark = c.x > 22 && c.x < 33.9 && c.z > -8 && c.z < 8;
+    if (!inPubArea && !inGardenArea && !inStreet && !inFunction && !inCarPark) b = true;
     if (!b) for (const s of G.solids) {
       if (!s.enabled || s.min.y > 1.0 || s.max.y < 0.1 || s.tag === 'invisible') continue;
       if (c.x > s.min.x - inf && c.x < s.max.x + inf && c.z > s.min.z - inf && c.z < s.max.z + inf) { b = true; break; }
@@ -604,7 +797,7 @@ export function findPath(from, to) {
   const push = (f, k) => { heap.push([f, k]); let c = heap.length - 1; while (c > 0) { const p = (c - 1) >> 1; if (heap[p][0] <= heap[c][0]) break; [heap[p], heap[c]] = [heap[c], heap[p]]; c = p; } };
   const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let c = 0; for (;;) { const l = 2 * c + 1, r = l + 1; let m = c; if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (r < heap.length && heap[r][0] < heap[m][0]) m = r; if (m === c) break; [heap[m], heap[c]] = [heap[c], heap[m]]; c = m; } } return top; };
   let found = false, iter = 0;
-  while (heap.length && iter++ < 6000) {
+  while (heap.length && iter++ < 20000) {
     const [, k] = pop();
     if (closed[k]) continue;
     closed[k] = 1;
@@ -638,5 +831,5 @@ export function findPath(from, to) {
 
 // Duck bobbing, TV, etc.
 export function updateWorld(t) {
-  if (G.ducks) G.ducks.forEach((d) => { const ph = d.userData.phase + t * 0.3; d.position.x = FIX.pondC.x + Math.cos(ph) * 1.0; d.position.z = FIX.pondC.z + Math.sin(ph) * 1.0; d.rotation.y = -ph; });
+  if (G.ducks) G.ducks.forEach((d) => { const ph = d.userData.phase + t * 0.3; d.position.x = FIX.pondC.x + Math.cos(ph) * 0.7; d.position.z = FIX.pondC.z + Math.sin(ph) * 0.7; d.rotation.y = -ph; });
 }
