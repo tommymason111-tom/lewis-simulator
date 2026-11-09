@@ -60,7 +60,7 @@ function pubCup() {
   const mk = (p, team, speed, skill, role, home) => ({ p, team, speed, skill, role, home, cd: 0, think: 0 });
   const players = [
     mk(teamPerson('Ronnie', 14, -2, A, { wide: 1.45, heavy: 2.4, hair: 0x2b1b0e }), 'A', 0.95, 0.5, 'att', V(17, 0, -2)),
-    mk(teamPerson('Hollie', 13, 2, A, { hair: 0xd2561e, ponytail: true, headband: 0x29b6f6, scale: 0.92 }), 'A', 1.3, 0.85, 'def', V(13, 0, 1.5)),
+    mk(teamPerson('Hollie', 13, 2, A, { hair: 0xd2561e, skin: 0xf6d9c6, ponytail: true, headband: 0x29b6f6, scale: 0.92 }), 'A', 1.3, 0.85, 'def', V(13, 0, 1.5)),
     mk(teamPerson('Big Dave', 19, 0, B, { wide: 1.3, heavy: 1.8 }), 'B', 0.75, 0.7, 'def', V(19.5, 0, 0)),
     mk(teamPerson('Sandra', 18, -2, B, { hair: 0xd9c48c }), 'B', 1.0, 0.75, 'att', V(15, 0, -2)),
     mk(teamPerson('Old Pete', 18, 2.5, B, { hair: 0xdddddd, scale: 0.92 }), 'B', 0.6, 0.6, 'att', V(15, 0, 2.5)),
@@ -241,7 +241,7 @@ function trickShots() {
 
 // ================================================================ Hollie's 5K
 function fiveK() {
-  const h = new Person({ kind: 'hollie', name: 'Hollie', tag: 'Hollie', label: 'Hollie', x: FIX.lapPath[0].x, z: FIX.lapPath[0].z, shirt: 0xff4f8b, trousers: 0x1a1a1a, hair: 0xd2561e, ponytail: true, headband: 0x29b6f6, shortSleeves: true, scale: 0.92, walkSpeed: 0.75, bubbleColor: '#ffe0ec', shoes: 0x29b6f6 });
+  const h = new Person({ kind: 'hollie', name: 'Hollie', tag: 'Hollie', label: 'Hollie', x: FIX.lapPath[0].x, z: FIX.lapPath[0].z, shirt: 0xff4f8b, trousers: 0x1a1a1a, hair: 0xd2561e, skin: 0xf6d9c6, ponytail: true, headband: 0x29b6f6, shortSleeves: true, scale: 0.92, walkSpeed: 0.75, bubbleColor: '#ffe0ec', shoes: 0x29b6f6 });
   h.onBeforeKnock = (imp, src) => { if (chance(0.8)) { h.say(pick(LINES.hollie.dodge)); return false; } return true; };
   h.onGetUp = () => { h.say('BABE! I\'m mid-run!'); st.leg = 0; };
   const ian = makeIanPerson(12.4, 3.6); ian.immune = true; ian.faceTowards(V(16, 0, 0));

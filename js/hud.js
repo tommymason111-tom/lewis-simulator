@@ -54,7 +54,7 @@ G.toast = toast;
 
 // Attach HUD to left wrist in VR, hide DOM version.
 export function setVRHud(on) {
-  document.getElementById('hud').style.display = on ? 'none' : '';
+  document.getElementById('hud').style.display = on ? 'none' : 'block';
   if (on) {
     const left = G.hands[G.settings.leftHanded ? 1 : 0];
     left.mesh.add(hudMesh);
@@ -179,7 +179,7 @@ let lastPrompt = '';
 function drawPrompt() {
   const p = G.player;
   const t = p.target;
-  const key = G.xr ? 'A' : (G.touch ? 'TALK' : 'E');
+  const key = G.xr ? 'A' : (G.finePointer ? 'E' : 'TALK');
   const text = t ? `[${key}] ${t.label}` : '';
   const prog = p.holdProgress;
   const sig = text + prog.toFixed(2);

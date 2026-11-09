@@ -69,7 +69,7 @@ class Ronnie {
       label: () => {
         if (this.p.hidden) return null;
         if (this.blockingTaps) return 'Help Ronnie out from under the keg';
-        if (this.wrestle) return `ARM WRESTLE! Mash ${G.xr ? 'A / wiggle your controllers' : G.touch ? 'TALK' : 'E'}!`;
+        if (this.wrestle) return `ARM WRESTLE! Mash ${G.xr ? 'A / wiggle your controllers' : !G.finePointer ? 'TALK' : 'E'}!`;
         if (this.frozen > 0) return null;
         if (G.player.isCrouched() && !this.seq) return 'Arm wrestle Ronnie (on a slow table)';
         return 'Send Ronnie to the staff room';
@@ -576,7 +576,7 @@ export function updateTalk(dt) {
 // ---------------------------------------------------------------- Hollie
 class Hollie {
   constructor(early) {
-    this.p = new Person({ kind: 'hollie', name: 'Hollie', tag: 'Hollie', label: 'Hollie', x: FIX.spawn.x, z: FIX.spawn.z, shirt: 0xff4f8b, trousers: 0x1a1a1a, hair: 0xd2561e, ponytail: true, headband: 0x29b6f6, shortSleeves: true, scale: 0.92, walkSpeed: 1.3, bubbleColor: '#ffe0ec', shoes: 0x29b6f6 });
+    this.p = new Person({ kind: 'hollie', name: 'Hollie', tag: 'Hollie', label: 'Hollie', x: FIX.spawn.x, z: FIX.spawn.z, shirt: 0xff4f8b, trousers: 0x1a1a1a, hair: 0xd2561e, skin: 0xf6d9c6, ponytail: true, headband: 0x29b6f6, shortSleeves: true, scale: 0.92, walkSpeed: 1.3, bubbleColor: '#ffe0ec', shoes: 0x29b6f6 });
     this.happiness = 0.3; this.offended = 0; this.served = false; this.waterCount = 0;
     this.seq = null; this.mode = 'arrive';
     this.table = tableById('hollie');

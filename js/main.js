@@ -88,9 +88,10 @@ function init() {
 function showScreen(name) {
   for (const id of ['menu', 'pause', 'results', 'chooser']) $(id).classList.toggle('show', id === name);
   const playing = name === null;
-  $('hud').style.display = playing && !G.xr ? '' : 'none';
-  $('crosshair').style.display = playing && !G.xr && !G.touch ? '' : 'none';
-  $('touch').style.display = playing && G.touch && !G.xr ? '' : 'none';
+  // Not in VR: always show the on-screen joystick + buttons (keyboard/mouse still work too).
+  $('hud').style.display = playing && !G.xr ? 'block' : 'none';
+  $('crosshair').style.display = playing && !G.xr ? 'block' : 'none';
+  $('touch').style.display = playing && !G.xr ? 'block' : 'none';
 }
 
 function renderMenu() {
@@ -216,12 +217,13 @@ function choose(id) {
   initAudio();
   pendingShift = id;
   const cfg = cfgFor(id);
-  G.touch = matchMedia('(pointer: coarse)').matches || (navigator.maxTouchPoints > 0 && !matchMedia('(pointer: fine)').matches);
+  G.touch = true; // on-screen controls whenever we're not in VR
+  G.finePointer = matchMedia('(pointer: fine)').matches && navigator.maxTouchPoints === 0;
   $('chooser').innerHTML = `<div class="inner small">
     <h2>${cfg.day} · ${cfg.name}</h2><p>${cfg.twist}</p>
     ${xrSupported ? '<button class="btn big" id="bVR">🥽 Enter VR</button>' : ''}
     ${arSupported ? '<button class="btn big" id="bMR">🛋 Mixed reality (the pub in your living room)</button>' : ''}
-    <button class="btn big" id="bFlat">${G.touch ? '📱 Play with touch controls' : '🖥 Play on this screen'}</button>
+    <button class="btn big" id="bFlat">${G.finePointer ? '🖥 Play on this screen' : '📱 Play on this screen (touch controls)'}</button>
     <button class="btn" id="bBack">Back</button>
     ${!xrSupported ? '<p class="foot">VR needs the Quest browser (or another WebXR browser) over https.</p>' : ''}</div>`;
   showScreen('chooser');
@@ -236,7 +238,7 @@ function playFlat(id) {
   setVRHud(false);
   showScreen(null);
   startShift(id);
-  if (!G.touch) $('c').requestPointerLock?.();
+  if (G.finePointer) $('c').requestPointerLock?.();
 }
 
 async function enterVR(id, mixed = false) {
@@ -287,14 +289,14 @@ function pause() {
     <button class="btn" id="pQuit">${G.shift.cfg.sandbox ? 'End lock-in' : 'Quit to menu'}</button></div>`;
   showScreen('pause');
   $('pResume').onclick = resume;
-  $('pRestart').onclick = () => { showScreen(null); startShift(G.shiftId); if (!G.touch) $('c').requestPointerLock?.(); };
+  $('pRestart').onclick = () => { showScreen(null); startShift(G.shiftId); if (G.finePointer) $('c').requestPointerLock?.(); };
   $('pQuit').onclick = () => { if (G.shift.cfg.sandbox) { G.mode = 'playing'; endShift('quit-sandbox'); } else toMenu(); };
 }
 function resume() {
   hidePanel();
   G.mode = 'playing';
   showScreen(null);
-  if (!G.xr && !G.touch) $('c').requestPointerLock?.();
+  if (!G.xr && G.finePointer) $('c').requestPointerLock?.();
 }
 
 function nextShiftId() {
@@ -314,8 +316,8 @@ function showResults() {
     ${G.shift.credits ? `<div class="credits">${creditsHTML()}</div>` : ''}
     <button class="btn" id="rReplay">Replay shift</button><button class="btn" id="rMenu">Menu</button></div>`;
   showScreen('results');
-  if ($('rNext')) $('rNext').onclick = () => { showScreen(null); startShift(next); if (!G.touch) $('c').requestPointerLock?.(); };
-  $('rReplay').onclick = () => { showScreen(null); startShift(G.shiftId); if (!G.touch) $('c').requestPointerLock?.(); };
+  if ($('rNext')) $('rNext').onclick = () => { showScreen(null); startShift(next); if (G.finePointer) $('c').requestPointerLock?.(); };
+  $('rReplay').onclick = () => { showScreen(null); startShift(G.shiftId); if (G.finePointer) $('c').requestPointerLock?.(); };
   $('rMenu').onclick = toMenu;
   if ($('rTheatre')) $('rTheatre').onclick = () => { showScreen(null); $('hud').style.display = 'none'; startReplay(); };
 }

@@ -345,7 +345,7 @@ on('golden', () => {
 });
 
 // ---------------------------------------------------------------- tutorial
-const K = () => G.xr ? { crouch: 'B', act: 'A', grab: 'grip', kick: 'swing a controller low' } : G.touch ? { crouch: 'CROUCH', act: 'TALK', grab: 'GRAB', kick: 'KICK' } : { crouch: 'C', act: 'E', grab: 'click', kick: 'F' };
+const K = () => G.xr ? { crouch: 'B', act: 'A', grab: 'grip', kick: 'swing a controller low' } : !G.finePointer ? { crouch: 'CROUCH', act: 'TALK', grab: 'GRAB', kick: 'KICK' } : { crouch: 'C', act: 'E', grab: 'click', kick: 'F' };
 const TUT = [
   { hint: () => `Lewis is VERY tall. Press ${K().crouch} to crouch (beams are at forehead height).`, done: () => G.player.isCrouched() },
   { hint: () => `A group is at the front door. Look at them and press ${K().act} to seat them.`, ev: 'groupFollowing' },

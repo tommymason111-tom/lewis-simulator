@@ -247,15 +247,15 @@ export function setupInput(canvas) {
   window.addEventListener('keyup', (e) => { keys[e.code] = false; });
   canvas.addEventListener('mousedown', (e) => {
     initAudio();
-    if (G.mode !== 'playing' || G.xr || G.touch) return;
-    if (!mouse.locked) { canvas.requestPointerLock?.(); return; }
+    if (G.mode !== 'playing' || G.xr) return;
+    if (!mouse.locked) { if (G.finePointer) canvas.requestPointerLock?.(); return; }
     if (e.button === 0) pressed.Mouse0 = true;
     if (e.button === 2) pressed.Mouse2 = true;
     if (e.button === 1) { pressed.Mouse1 = true; mouse.mid = true; e.preventDefault(); }
   });
   canvas.addEventListener('mouseup', (e) => { if (e.button === 1) mouse.mid = false; });
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());
-  document.addEventListener('pointerlockchange', () => { mouse.locked = document.pointerLockElement === canvas; if (!mouse.locked && G.mode === 'playing' && !G.xr && !G.touch) emit('requestPause'); });
+  document.addEventListener('pointerlockchange', () => { mouse.locked = document.pointerLockElement === canvas; if (!mouse.locked && G.mode === 'playing' && !G.xr) emit('requestPause'); });
   document.addEventListener('mousemove', (e) => { if (mouse.locked) { mouse.dx += e.movementX; mouse.dy += e.movementY; } });
 }
 
@@ -354,7 +354,7 @@ function gatherInput() {
   // Flat: keyboard + mouse + touch
   const k = keys;
   inp.move.set((k.KeyD || k.ArrowRight ? 1 : 0) - (k.KeyA || k.ArrowLeft ? 1 : 0), 0, (k.KeyS || k.ArrowDown ? 1 : 0) - (k.KeyW || k.ArrowUp ? 1 : 0));
-  if (G.touch) { inp.move.x += touch.moveX; inp.move.z += touch.moveY; }
+  inp.move.x += touch.moveX; inp.move.z += touch.moveY;
   if (inp.move.length() > 1) inp.move.normalize();
   inp.lookX = mouse.dx * 0.0025 + touch.lookDX * 0.006; inp.lookY = mouse.dy * 0.0025 + touch.lookDY * 0.006;
   mouse.dx = mouse.dy = 0; touch.lookDX = touch.lookDY = 0;
