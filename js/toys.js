@@ -170,7 +170,7 @@ function poolBall(color, pos) {
 function drawFruit(sym) {
   const x = fruitTex.ctx;
   x.fillStyle = '#ffeb3b'; x.fillRect(0, 0, 256, 192);
-  x.fillStyle = '#6a1b9a'; x.font = 'bold 26px Arial'; x.textAlign = 'center'; x.fillText('FRUITS', 128, 30);
+  x.fillStyle = '#6a1b9a'; x.font = 'bold 26px Arial'; x.textAlign = 'center'; x.fillText('THE CHIP MACHINE', 128, 30);
   x.fillStyle = '#fff'; for (let i = 0; i < 3; i++) x.fillRect(14 + i * 80, 50, 68, 90);
   x.font = '52px serif'; x.textBaseline = 'middle';
   sym.forEach((s, i) => x.fillText(s, 48 + i * 80, 96));

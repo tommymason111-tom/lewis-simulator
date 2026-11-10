@@ -7,9 +7,11 @@ import { HEAD, PELVIS, LF, RF } from './people.js';
 import { sfx, initAudio } from './audio.js';
 import { labelSprite, camoTexture } from './textures.js';
 import { COSMETICS } from './data.js';
+import { Person } from './people.js';
+import { CAST } from './models.js';
 import { mat } from './world.js';
 
-const SKIN = 0xf1c27d;
+const SKIN = 0xf0b48c; // Lewis's gym tan
 const keys = {};
 const mouse = { dx: 0, dy: 0, locked: false };
 const touch = { moveX: 0, moveY: 0, lookDX: 0, lookDY: 0, buttons: {} };
@@ -18,7 +20,7 @@ let pressed = {}; // edge-triggered actions this frame
 // ---------------------------------------------------------------- hand meshes
 function makeHandMesh(left) {
   const g = new THREE.Group();
-  const skin = mat(SKIN), sleeve = mat(0xffffff);
+  const skin = mat(SKIN), sleeve = mat(0xe8303a);
   const palm = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.03, 0.1), skin); palm.position.z = -0.02; g.add(palm);
   const fingers = [];
   for (let i = 0; i < 4; i++) {
@@ -36,48 +38,30 @@ function makeHandMesh(left) {
   return g;
 }
 
-// Lewis's own body (seen when looking down): apron + name badge. His head is on
-// layer 5 so it only shows up in photos (selfies with the disposable camera).
+// Lewis's own body (seen when looking down) is his full character model from the Ronnie Simulator cast.
+// His head lives on layer 5, so it only shows up in photos (selfies with the disposable camera).
 const SELFIE_LAYER = 5;
-function makeBody() {
-  const g = new THREE.Group();
-  const parts = {};
-  parts.shirt = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.7, 0.24), new THREE.MeshLambertMaterial({ color: 0xffffff })); parts.shirt.position.y = -0.62; g.add(parts.shirt);
-  parts.apron = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.75, 0.02), new THREE.MeshLambertMaterial({ color: 0x1d3b2a })); parts.apron.position.set(0, -0.75, -0.13); g.add(parts.apron);
-  const badge = labelSprite('LEWIS — Happy to help', { w: 512, h: 96, size: 34, bg: '#f5f0e0', color: '#1d3b2a', stroke: 0, scale: 0.05 });
-  badge.position.set(0.1, -0.42, -0.14); g.add(badge);
-  parts.kit = labelSprite('LEWIS 9', { size: 34, scale: 0.12, w: 256, h: 64 }); parts.kit.position.set(0, -0.5, 0.13); parts.kit.visible = false; g.add(parts.kit);
-  const legs = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.95, 0.2), mat(0x222222)); legs.position.y = -1.48; g.add(legs);
-  // Head (selfie layer only)
-  const head = new THREE.Group();
-  const skin = new THREE.Mesh(new THREE.IcosahedronGeometry(0.13, 1), mat(SKIN)); head.add(skin);
-  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.138, 10, 6, 0, Math.PI * 2, 0, Math.PI * 0.5), mat(0x3b2412)); hair.rotation.x = 0.25; head.add(hair);
-  for (const sx of [-1, 1]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.014, 6, 4), mat(0x111111)); e.position.set(sx * 0.045, 0.02, -0.12); head.add(e); }
-  const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.008, 0.01), mat(0x5a1a1a)); mouth.position.set(0, -0.055, -0.123); head.add(mouth);
-  parts.hat = new THREE.Group(); head.add(parts.hat);
-  head.traverse((o) => o.layers.set(SELFIE_LAYER));
-  parts.head = head; g.add(head);
-  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.2, 8), mat(SKIN)); neck.position.y = -0.2; neck.layers.set(SELFIE_LAYER); g.add(neck);
-  g.userData.parts = parts;
-  return g;
-}
-
-export function applyCosmetics() {
-  const parts = G.body?.userData.parts; if (!parts) return;
-  const sel = Object.assign({ apron: 'apron-green', shirt: 'shirt-white', hat: 'hat-none' }, G.save.cosmetics || {});
+function lewisLook() {
+  const look = CAST.lewis();
+  const sel = Object.assign({ apron: 'apron-green', shirt: 'shirt-palace', hat: 'hat-none' }, G.save?.cosmetics || {});
   const find = (id) => COSMETICS.find((c) => c.id === id) || {};
   const apron = find(sel.apron), shirt = find(sel.shirt), hat = find(sel.hat);
-  if (apron.camo) { parts.apron.material.map = camoTexture(); parts.apron.material.color.set(0xffffff); }
-  else { parts.apron.material.map = null; parts.apron.material.color.set(apron.color ?? 0x1d3b2a); }
-  parts.apron.material.needsUpdate = true;
-  parts.shirt.material.color.set(shirt.color ?? 0xffffff);
-  parts.kit.visible = !!shirt.kit;
-  while (parts.hat.children.length) parts.hat.remove(parts.hat.children[0]);
-  if (hat.hat === 'headband') { const hb = new THREE.Mesh(new THREE.TorusGeometry(0.135, 0.015, 4, 14), mat(0x29b6f6)); hb.rotation.x = Math.PI / 2; hb.position.y = 0.04; parts.hat.add(hb); }
-  if (hat.hat === 'monster') { const c = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.2, 10), mat(0x111111)); c.position.y = 0.2; parts.hat.add(c); const l = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.12, 0.04), new THREE.MeshBasicMaterial({ color: 0x7cfc00 })); l.position.set(0, 0.2, -0.06); parts.hat.add(l); }
-  if (hat.hat === 'santa') { const c = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.25, 10), mat(0xd32f2f)); c.position.y = 0.17; parts.hat.add(c); const pom = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 4), mat(0xffffff)); pom.position.y = 0.3; parts.hat.add(pom); }
-  parts.hat.traverse((o) => o.layers.set(SELFIE_LAYER));
+  if (apron.camo) look.apronCamo = true;
+  look.apron = apron.camo ? 0x5b5f3a : (apron.color ?? 0x1d3b2a);
+  if (shirt.id) { look.shirt = shirt.color; look.shirt2 = shirt.color2 ?? null; look.pattern = shirt.pattern || 'plain'; look.backText = shirt.kit || null; }
+  look.hat = hat.hat === 'santa' ? 'santa' : hat.hat === 'monster' ? 'monster' : null;
+  look.headband = hat.hat === 'headband' ? 0x29b6f6 : null;
+  return look;
 }
+function makeLewis() {
+  if (G.lewis) G.lewis.destroy();
+  const p = new Person({ kind: 'lewis', name: 'Lewis', look: lewisLook(), noArms: true, splitHead: true, noRegister: true });
+  p.headMesh.layers.set(SELFIE_LAYER);
+  p.bubble.sprite.visible = false;
+  G.lewis = p;
+  return p;
+}
+export function applyCosmetics() { makeLewis(); }
 
 // ---------------------------------------------------------------- Hand
 class Hand {
@@ -101,7 +85,7 @@ class Hand {
   grabItem(it) {
     if (it.held && it.held.npc) { const r = it.held.npc; r.carry = r.carry.filter((x) => x !== it); }
     if (it.frozen) { emit('unserve', it); it.frozen = false; }
-    it.onPass = false; it.sleeping = false; it.rejectedBy = null; it.ianSeen = false;
+    it.onPass = false; it.sleeping = false; it.rejectedBy = null; it.ianSeen = false; it.prop = false;
     if (it.cls === 'golden') { emit('golden', it); it.remove(); sfx.coin(); return true; }
     if (this.held && this.held.item && sameFamily(this.held.item, it) && this.stack.length + 1 < this.maxStack(it)) {
       it.held = this; this.stack.push(it); sfx.grab(); return true;
@@ -219,8 +203,7 @@ export function createPlayer() {
   };
   G.player = p;
   G.hands = [new Hand('left'), new Hand('right')];
-  G.body = makeBody();
-  G.scene.add(G.body);
+  makeLewis();
   return p;
 }
 
@@ -455,12 +438,18 @@ function rotateRigAroundHead(angle) {
 }
 
 function updateBody() {
+  const L = G.lewis; if (!L) return;
   const h = headWorld();
   const f = G.player.forward();
-  G.body.position.set(h.x, h.y, h.z).addScaledVector(f, -0.08);
-  G.body.rotation.set(0, Math.atan2(-f.x, -f.z), 0);
-  const sc = clamp(h.y / 2.05, 0.4, 1.1);
-  G.body.scale.set(1, sc, 1);
+  L.root.set(h.x, 0, h.z).addScaledVector(f, -0.1);
+  L.yaw = Math.atan2(f.x, f.z);
+  const standHead = 1.62 * L.scale;
+  L.lift = Math.min(0, h.y - standHead);
+  const moving = G.player.vel.lengthSq() > 0.05;
+  L.state = moving ? 'walk' : 'stand'; L.pose = 'stand';
+  L.phase += moving ? 0.12 * (G.player.sprinting ? 1.6 : 1) : 0.02;
+  L.snapToPose();
+  L.render();
 }
 
 // ---------------------------------------------------------------- hands

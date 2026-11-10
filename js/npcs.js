@@ -5,6 +5,7 @@ import { Person, HEAD, PELVIS, NECK, LH, RH } from './people.js';
 import { FIX, inGarden, mat } from './world.js';
 import { Item, spawnDrink } from './physics.js';
 import { LINES, TALK_OPTIONS, QUIZ, DISHES, IAN_LOOK } from './data.js';
+import { CAST, oldManLook } from './models.js';
 import { groups, passPlates, runnerCaught, tableById } from './serving.js';
 import { stutterize } from './textures.js';
 import { sfx, speak } from './audio.js';
@@ -50,7 +51,7 @@ function propRod() {
 // ---------------------------------------------------------------- Ronnie
 class Ronnie {
   constructor() {
-    this.p = new Person({ kind: 'ronnie', name: 'Ronnie', tag: 'Ronnie', label: 'Ronnie', x: 4.5, z: -6, scale: 1.0, wide: 1.45, heavy: 2.4, shirt: 0xf5f5f5, trousers: 0x222222, apron: 0x1d3b2a, hair: 0x2b1b0e, shortSleeves: true, prop: propCan(), walkSpeed: 1.05, bubbleColor: '#e8f5e9' });
+    this.p = new Person({ kind: 'ronnie', name: 'Ronnie', tag: 'Ronnie', label: 'Ronnie', x: 4.5, z: -6, look: CAST.ronnie(), heavy: 2.2, prop: propCan(), walkSpeed: 1.05, bubbleColor: '#e8f5e9' });
     this.p.immune = false;
     this.p.onGetUp = () => this.flex();
     this.p.onBeforeKnock = (imp, src) => {
@@ -328,7 +329,7 @@ class Ronnie {
       this.hiddenTimer -= dt;
       if (this.hiddenTimer <= 0) {
         this.p.hidden = false; this.p.root.copy(this.reappearAt || FIX.staffDoor).add(V(0, 0, 0.5)); this.reappearAt = null; this.p.state = 'stand';
-        for (let i = 0; i < 7; i++) { this.p.p[i].copy(this.p.root); this.p.o[i].copy(this.p.root); }
+        this.p.snapToPose();
         this.say(pick(LINES.ronnie.back)); this.status = 'Helping';
         this.nextEvent = rand(8, 15);
       }
@@ -361,7 +362,7 @@ class Ronnie {
 // ---------------------------------------------------------------- Ian
 // Ian: a big lad (about Noah's size), white skin, grey hair, full camo every single shift.
 export function makeIanPerson(x, z, opts = {}) {
-  return new Person(Object.assign({ kind: 'ian', name: 'Ian', tag: 'Ian (Dad)', label: 'Ian', x, z, camo: true, hat: 'camo', skin: IAN_LOOK.skin, hair: IAN_LOOK.hair, scale: IAN_LOOK.scale, wide: IAN_LOOK.wide, heavy: IAN_LOOK.heavy, prop: propRod(), bubbleColor: '#e8e8d0', walkSpeed: 0.95 }, opts));
+  return new Person(Object.assign({ kind: 'ian', name: 'Ian', tag: 'Ian (Dad)', label: 'Ian', x, z, look: CAST.ian(), heavy: 2.4, prop: propRod(), bubbleColor: '#e8e8d0', walkSpeed: 0.95 }, opts));
 }
 class Ian {
   constructor() {
@@ -468,7 +469,7 @@ class Ian {
     yield 1.5;
     this.p.hidden = false;
     this.p.root.set(-7.3, 0, -1.8); this.p.state = 'stand'; this.p.setPose('stand'); this.p.faceTowards(V(-9, 0, -1.8));
-    for (let i = 0; i < 7; i++) { this.p.p[i].copy(this.p.root); this.p.o[i].copy(this.p.root); }
+    this.p.snapToPose();
     this.say('LEWY! Pint, Lewy!', true);
     G.toast('Ian is suddenly at the bar. Nobody saw him move. (Camo.)');
     yield 15;
@@ -576,15 +577,11 @@ export function updateTalk(dt) {
 // ---------------------------------------------------------------- Hollie
 class Hollie {
   constructor(early) {
-    this.p = new Person({ kind: 'hollie', name: 'Hollie', tag: 'Hollie', label: 'Hollie', x: FIX.spawn.x, z: FIX.spawn.z, shirt: 0xff4f8b, trousers: 0x1a1a1a, hair: 0xd2561e, skin: 0xf6d9c6, ponytail: true, headband: 0x29b6f6, shortSleeves: true, scale: 0.92, walkSpeed: 1.3, bubbleColor: '#ffe0ec', shoes: 0x29b6f6 });
+    this.p = new Person({ kind: 'hollie', name: 'Hollie', tag: 'Hollie', label: 'Hollie', x: FIX.spawn.x, z: FIX.spawn.z, look: CAST.hollie(), walkSpeed: 1.3, bubbleColor: '#ffe0ec' });
     this.happiness = 0.3; this.offended = 0; this.served = false; this.waterCount = 0;
     this.seq = null; this.mode = 'arrive';
     this.table = tableById('hollie');
-    this.p.onBeforeKnock = (imp, src) => {
-      if (this.offended > 0 && src === 'grab') return true;
-      if ((src === 'grab' && chance(0.75)) || (src !== 'grab' && src !== 'bowled' && chance(0.6))) { this.dodge(); return false; }
-      return true;
-    };
+    // Hollie can be picked up and thrown like everyone else now.
     this.p.onGetUp = () => {
       this.offended = 60; this.happiness = Math.max(0, this.happiness - 0.5);
       this.say(pick(LINES.hollie.offended));
@@ -705,21 +702,28 @@ class Hollie {
 // ---------------------------------------------------------------- regulars + chef
 function makeRegulars() {
   const regs = [];
-  const names = ['Big Dave', 'Sandra', 'Old Pete'];
+  const names = ['Big Dave', 'Old Ted', 'Old Pete'];
   [-6.1, -5.3, -4.5].forEach((z, i) => {
-    const p = new Person({ kind: 'regular', name: names[i], tag: names[i], x: -7.4, z, shirt: [0x6d4c41, 0x7b1fa2, 0x455a64][i], scale: 1, walkSpeed: 1 });
+    const p = new Person({ kind: 'regular', name: names[i], tag: names[i], x: -7.4, z, look: oldManLook(i === 0 ? { wide: 1.45, belly: 1 } : {}), walkSpeed: 0.8 });
     p.sitAt({ pos: V(-7.45, 0, z), yaw: -Math.PI / 2 });
     p.lift = 0.27;
     p.onGetUp = () => { p.say('Oi! I\'ve been coming here 30 years!'); p.walkTo(V(-7.45, 0, z), () => { p.sitAt({ pos: V(-7.45, 0, z), yaw: -Math.PI / 2 }); p.lift = 0.27; }); };
     regs.push(p);
+    // Their drinks on the bar
+    const d = spawnDrink(i === 1 ? 'wine' : 'pint', V(-8.12, 1.25, z)); d.setFill(rand(0.4, 0.9)); d.prop = true;
   });
+  // More glasses along the bar: empties, a half-finished wine, a stack of clean pint glasses
+  for (const [drink, z, fill] of [['pint', -2.75, 0.1], ['wine', -1.9, 0.5], ['pint', -0.8, 0.0], ['pint', 0.6, 0.25], ['wine', 0.75, 0.0]]) {
+    const it = spawnDrink(drink, V(-8.2, 1.25, z)); it.setFill(fill); it.prop = true;
+  }
+  for (let k = 0; k < 4; k++) { const it = spawnDrink('pint', V(-8.62, 1.25, -5.3 + k * 0.16)); it.setFill(0); it.prop = true; }
+  // Ian's own pint by the fire
+  const ip = spawnDrink('pint', V(8.75, 0.9, 5.15)); ip.setFill(0.3); ip.prop = true;
   return regs;
 }
 function makeChef() {
-  const c = new Person({ kind: 'chef', name: 'Chef', x: 5.3, z: -9.0, shirt: 0xffffff, trousers: 0x333333, yaw: 0, scale: 1.05, bubbleColor: '#ffffff' });
+  const c = new Person({ kind: 'chef', name: 'Chef', x: 5.3, z: -9.0, yaw: 0, bubbleColor: '#ffffff', look: { scale: 1.05, wide: 1.2, belly: 0.6, skin: 0xeec5ad, hair: 0x3b2412, hairStyle: 'short', facial: 'moustache', shirt: 0xffffff, sleeves: 'long', trousers: 0x37474f, hat: 'chef', apron: 0xeeeeee } });
   c.immune = true;
-  const hat = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.14, 0.3, 10), mat(0xffffff));
-  hat.position.y = 0.3; c.head.add(hat);
   c.onBeforeKnock = () => false;
   return c;
 }

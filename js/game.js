@@ -10,6 +10,8 @@ import { resetReplay, recordReplay } from './replay.js';
 import { textTexture } from './textures.js';
 import { Person } from './people.js';
 import { FRIENDS, LINES as LN } from './data.js';
+import { CAST } from './models.js';
+import { updateImpactWords } from './people.js';
 import { applyCosmetics } from './player.js';
 import { Item, spawnPlate, spawnDrink, updateItems } from './physics.js';
 import { stepPeople, peopleInteractions, PELVIS, HEAD } from './people.js';
@@ -335,7 +337,7 @@ on('golden', () => {
   const p = G.player.pos, crew = [];
   FRIENDS.forEach((name, i) => {
     const a = (i / FRIENDS.length) * Math.PI * 2;
-    const f = new Person({ kind: 'friend', name, tag: name, label: name, x: p.x + Math.cos(a) * 1.6, z: p.z + Math.sin(a) * 1.6, shirt: [0x2a9d8f, 0xe76f51, 0x264653, 0xf4a261, 0x8ab17d, 0x6d597a][i] });
+    const f = new Person({ kind: 'friend', name, tag: name, label: name, x: p.x + Math.cos(a) * 1.6, z: p.z + Math.sin(a) * 1.6, look: CAST[name]() });
     f.faceTowards(p); f.immune = true; f.setPose('speech');
     setTimeout(() => f.say(pick(['LEWIS! LEGEND!', 'To the tall lad!', 'Golden oysters, golden boy!', 'CHEERS BIG MAN!'])), 400 + i * 300);
     crew.push(f);
@@ -398,6 +400,7 @@ export function updateGame(rawDt) {
   updateGoals();
   updateTutorial(rawDt);
   updateToys(dt);
+  updateImpactWords(rawDt);
   updateEvents(dt);
   updateMode(dt);
   recordReplay(dt);

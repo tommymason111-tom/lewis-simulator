@@ -321,7 +321,7 @@ const DEFS = {
   },
   managerInspection: {
     start(ev) {
-      ev.npc = new Person({ kind: 'manager', name: 'Manager', tag: 'The Manager', x: FIX.staffDoor.x, z: FIX.staffDoor.z + 0.5, shirt: 0x37474f, trousers: 0x263238, glasses: true, hair: 0x3e2723, bubbleColor: '#eceff1' });
+      ev.npc = new Person({ kind: 'manager', name: 'Manager', tag: 'The Manager', x: FIX.staffDoor.x, z: FIX.staffDoor.z + 0.5, bubbleColor: '#eceff1', look: { scale: 1.0, wide: 1.1, belly: 0.4, hair: 0x3e2723, hairStyle: 'short', glasses: true, shirt: 0xffffff, jacket: 0x37474f, sleeves: 'long', collar: 0x1a237e, trousers: 0x263238 } });
       ev.npc.immune = true; ev.objs.push({ remove: () => ev.npc.destroy() });
       ev.score = 0; ev.next = 0;
       toast('📋 The manager is doing a surprise inspection. Serve well. Do NOT throw anyone in front of him.', 5);
@@ -352,7 +352,7 @@ const DEFS = {
       if (ev.arrive > 0) {
         ev.arrive -= dt;
         if (ev.arrive <= 0) {
-          ev.npc = new Person({ kind: 'inspector', name: 'Inspector', tag: 'Health Inspector', x: FIX.spawn.x, z: FIX.spawn.z, shirt: 0xffffff, trousers: 0x37474f, glasses: true, bubbleColor: '#ffffff' });
+          ev.npc = new Person({ kind: 'inspector', name: 'Inspector', tag: 'Health Inspector', x: FIX.spawn.x, z: FIX.spawn.z, bubbleColor: '#ffffff', look: { hair: 0x8d6e63, hairStyle: 'combover', glasses: true, shirt: 0xffffff, jacket: 0xf5f5f5, sleeves: 'long', trousers: 0x37474f, facial: 'moustache' } });
           ev.npc.immune = true; ev.objs.push({ remove: () => ev.npc.destroy() });
           ev.npc.walkTo(V(2, 0, -6.4));
           if (G.ronnie && G.ronnie.p.hidden) { toast('Inspection passed! No sign of Ronnie. +£5', 3.5); emit('addTips', 5); }

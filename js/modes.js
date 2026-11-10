@@ -6,6 +6,10 @@ import { FIX, mat, setCarParkOpen, addSolid, BEAM_Y } from './world.js';
 import { Item, spawnDrink, spawnPlate } from './physics.js';
 import { Person, HEAD, PELVIS, NECK, RH } from './people.js';
 import { makeIanPerson, startCards } from './npcs.js';
+import { CAST, oldManLook } from './models.js';
+import { resetPlayer } from './player.js';
+// Old boys' kit for the regulars' football team
+const kit = (shirt, extra = {}) => oldManLook(Object.assign({ jacket: null, shirt, collar: 0xffffff, sleeves: 'short', shorts: true, socks: shirt, shoes: 0x111111, hat: null, glasses: false, hunch: 0 }, extra));
 import { tableById } from './serving.js';
 import { labelSprite } from './textures.js';
 import { sfx, speak } from './audio.js';
@@ -13,9 +17,9 @@ import { LINES, TALK_OPTIONS } from './data.js';
 
 const toast = (t, d = 3) => G.toast(t, d);
 const inter = (o) => { G.interactables.push(o); return o; };
-const PITCH = { x0: 11.0, x1: 21.1, z0: -4.8, z1: 4.8 };
+const PITCH = FIX.pitch, CZ = FIX.pitch.cz;
 const clampPitch = (p) => { p.x = clamp(p.x, PITCH.x0, PITCH.x1); p.z = clamp(p.z, PITCH.z0, PITCH.z1); return p; };
-const resetBall = (x = 16, z = 0) => { const b = G.ball; if (!b) return; b.held && b.held.forceRelease && b.held.forceRelease(); b.held = null; b.pos.set(x, 0.3, z); b.vel.set(0, 0, 0); b.sleeping = false; b.lastTouch = G.time; };
+const resetBall = (x = FIX.pitch.cx, z = FIX.pitch.cz) => { const b = G.ball; if (!b) return; b.held && b.held.forceRelease && b.held.forceRelease(); b.held = null; b.pos.set(x, 0.3, z); b.vel.set(0, 0, 0); b.sleeping = false; b.lastTouch = G.time; };
 
 // Decorations / props created for the current shift (removed on the next one).
 function decor(obj) { (G.decor ||= []).push(obj); if (obj.isObject3D && !obj.parent) G.scene.add(obj); return obj; }
@@ -50,8 +54,8 @@ export const modeHudLines = () => [...(G.shift.mg?.hudLines?.() || []), ...(boss
 export const modeSummary = () => [...(G.shift.mg?.summary?.() || []), ...(bossResult ? [bossResult] : [])];
 
 // ================================================================ Pub Cup (3v3)
-function teamPerson(name, x, z, shirt, opts = {}) {
-  const p = new Person(Object.assign({ kind: 'footballer', name, tag: name, label: name, x, z, shirt, trousers: 0x111111, shortSleeves: true, walkSpeed: 0.85 }, opts));
+function teamPerson(name, x, z, look, opts = {}) {
+  const p = new Person(Object.assign({ kind: 'footballer', name, tag: name, label: name, x, z, look, walkSpeed: 0.85 }, opts));
   p.onGetUp = () => {};
   return p;
 }
@@ -59,16 +63,15 @@ function pubCup() {
   const A = 0x1d6b3a, B = 0xff7a1a;
   const mk = (p, team, speed, skill, role, home) => ({ p, team, speed, skill, role, home, cd: 0, think: 0 });
   const players = [
-    mk(teamPerson('Ronnie', 14, -2, A, { wide: 1.45, heavy: 2.4, hair: 0x2b1b0e }), 'A', 0.95, 0.5, 'att', V(17, 0, -2)),
-    mk(teamPerson('Hollie', 13, 2, A, { hair: 0xd2561e, skin: 0xf6d9c6, ponytail: true, headband: 0x29b6f6, scale: 0.92 }), 'A', 1.3, 0.85, 'def', V(13, 0, 1.5)),
-    mk(teamPerson('Big Dave', 19, 0, B, { wide: 1.3, heavy: 1.8 }), 'B', 0.75, 0.7, 'def', V(19.5, 0, 0)),
-    mk(teamPerson('Sandra', 18, -2, B, { hair: 0xd9c48c }), 'B', 1.0, 0.75, 'att', V(15, 0, -2)),
-    mk(teamPerson('Old Pete', 18, 2.5, B, { hair: 0xdddddd, scale: 0.92 }), 'B', 0.6, 0.6, 'att', V(15, 0, 2.5)),
+    mk(teamPerson('Ronnie', 24, CZ - 2, CAST.ronnie(), { heavy: 2.2 }), 'A', 0.95, 0.5, 'att', V(24, 0, CZ - 2)),
+    mk(teamPerson('Hollie', 14, CZ + 1.8, CAST.hollie()), 'A', 1.3, 0.85, 'def', V(14, 0, CZ + 1.8)),
+    mk(teamPerson('Big Dave', 28.4, CZ, kit(B, { wide: 1.45, belly: 1 }), { heavy: 2 }), 'B', 0.75, 0.7, 'def', V(28.4, 0, CZ)),
+    mk(teamPerson('Old Ted', 18, CZ - 2, kit(B)), 'B', 0.9, 0.75, 'att', V(18, 0, CZ - 2)),
+    mk(teamPerson('Old Pete', 18, CZ + 2, kit(B, { scale: 0.92 })), 'B', 0.6, 0.6, 'att', V(18, 0, CZ + 2)),
   ];
   players.forEach((pl) => pl.p.root.copy(pl.home));
-  const ian = makeIanPerson(14, 6.2); ian.faceTowards(V(16, 0, 0)); ian.immune = true;
-  G.player.pos.set(14.5, 0, 0); G.player.yaw = -Math.PI / 2;
-  if (!G.xr) { G.rig.position.set(14.5, 0, 0); }
+  const ian = makeIanPerson(17, -9.7); ian.faceTowards(V(21, 0, CZ)); ian.immune = true;
+  resetPlayer(V(15, 0, CZ), -Math.PI / 2);
   resetBall();
   const score = { A: 0, B: 0 };
   let shout = 4, kickoffWait = 2;
@@ -102,13 +105,13 @@ function pubCup() {
         pl.cd -= dt; pl.think -= dt;
         const attackX = pl.team === 'A' ? FIX.goals[0].x : FIX.goals[1].x;
         const ownX = pl.team === 'A' ? FIX.goals[1].x : FIX.goals[0].x;
-        const toGoal = V(attackX - b.pos.x, 0, -b.pos.z).normalize();
+        const toGoal = V(attackX - b.pos.x, 0, CZ - b.pos.z).normalize();
         if (chaser[pl.team] === pl) {
           const behind = b.pos.clone().addScaledVector(toGoal, -0.3).setY(0);
           if (pl.think <= 0) { pl.think = 0.15; p.path = [clampPitch(behind)]; p.state = 'run'; p.walkSpeed = pl.speed; }
           if (dist(p.root) < 0.6 && b.pos.y < 0.7 && pl.cd <= 0 && !b.held) {
             pl.cd = 0.7;
-            const aim = V(attackX, 0, rand(-0.9, 0.9));
+            const aim = V(attackX, 0, CZ + rand(-0.9, 0.9));
             let dir = V().subVectors(aim, b.pos).setY(0);
             const d = dir.length(); dir.normalize();
             if (pl.p.name === 'Ronnie' && chance(0.35)) { dir = V(rand(-1, 1), 0, rand(-1, 1)).normalize(); p.say(pick(['T-t-top bins!', 'W-w-worldie!']), { dur: 1.5 }); }
@@ -121,8 +124,8 @@ function pubCup() {
         } else if (pl.think <= 0) {
           pl.think = 0.4;
           let t;
-          if (pl.role === 'def') t = V(ownX + (b.pos.x - ownX) * 0.35, 0, b.pos.z * 0.6);
-          else t = V(b.pos.x + Math.sign(attackX - ownX) * 2.5, 0, pl.home.z * 0.8 + b.pos.z * 0.3);
+          if (pl.role === 'def') t = V(ownX + (b.pos.x - ownX) * 0.35, 0, CZ + (b.pos.z - CZ) * 0.6);
+          else t = V(b.pos.x + Math.sign(attackX - ownX) * 2.5, 0, CZ + (pl.home.z - CZ) * 0.8 + (b.pos.z - CZ) * 0.3);
           p.path = [clampPitch(t)]; p.state = p.root.distanceTo(t) > 1.5 ? 'run' : 'walk'; p.walkSpeed = pl.speed;
         }
       }
@@ -140,20 +143,20 @@ on('ballTouch', () => { if (G.ball) G.ball.lastTouch = G.time; });
 // ================================================================ Penalties vs Ian
 function penalties() {
   const goal = FIX.goals[0];
-  const keeper = makeIanPerson(goal.x - 0.35, 0, { tag: 'Ian (in goal)' });
-  keeper.faceTowards(V(10, 0, 0));
+  const keeper = makeIanPerson(goal.x - 0.35, goal.z, { tag: 'Ian (in goal)' });
+  keeper.faceTowards(V(0, 0, goal.z));
   keeper.onGetUp = () => {};
-  const home = V(goal.x - 0.35, 0, 0);
+  const home = V(goal.x - 0.35, 0, goal.z);
   const st = { shots: 0, goals: 0, state: 'ready', t: 0, dived: false, result: '' };
   const placeKeeper = () => {
-    keeper.state = 'stand'; keeper.pose = 'stand'; keeper.heldBy = []; keeper.root.copy(home); keeper.faceTowards(V(10, 0, 0));
-    keeper.computePose(); for (let i = 0; i < 7; i++) { keeper.p[i].copy(keeper.anim[i]); keeper.o[i].copy(keeper.anim[i]); }
+    keeper.state = 'stand'; keeper.pose = 'stand'; keeper.heldBy = []; keeper.root.copy(home); keeper.faceTowards(V(0, 0, goal.z));
+    keeper.snapToPose();
   };
   const ready = () => {
-    st.state = 'ready'; st.t = 0; st.dived = false; resetBall(FIX.penaltySpot.x, 0); placeKeeper();
+    st.state = 'ready'; st.t = 0; st.dived = false; resetBall(FIX.penaltySpot.x, FIX.penaltySpot.z); placeKeeper();
     if (st.shots < 5) { keeper.say(pick(['Come on then, Lewy!', 'You\'ll never get it past me, Lewy!', 'I can\'t even see you, Lewy. Can you see ME?']), { dur: 2.5 }); toast(`Penalty ${st.shots + 1} of 5. Kick the ball at the bin goal.`, 2.5); }
   };
-  G.player.pos.set(16.4, 0, 0); G.player.yaw = -Math.PI / 2;
+  resetPlayer(V(FIX.penaltySpot.x - 1.6, 0, FIX.penaltySpot.z), -Math.PI / 2);
   setTimeout(ready, 800);
   const resolve = (txt, scored) => {
     if (st.state !== 'shot') return;
@@ -207,7 +210,7 @@ function trickShots() {
     { name: 'Do 10 keepie-uppies' },
   ];
   const st = { idx: 0, walls: 0, cool: 0 };
-  resetBall(-2, 0); G.player.pos.set(-2, 0, 1.5); G.player.yaw = 0;
+  resetBall(-2, 0); resetPlayer(V(-2, 0, 1.5), 0);
   const done = () => {
     toast(`✅ ${list[st.idx].name}!`, 2.5); sfx.cheer(); emit('addChaos', 20, 'trick'); emit('addTips', 3);
     st.idx++; st.walls = 0; st.cool = 1;
@@ -241,8 +244,7 @@ function trickShots() {
 
 // ================================================================ Hollie's 5K
 function fiveK() {
-  const h = new Person({ kind: 'hollie', name: 'Hollie', tag: 'Hollie', label: 'Hollie', x: FIX.lapPath[0].x, z: FIX.lapPath[0].z, shirt: 0xff4f8b, trousers: 0x1a1a1a, hair: 0xd2561e, skin: 0xf6d9c6, ponytail: true, headband: 0x29b6f6, shortSleeves: true, scale: 0.92, walkSpeed: 0.75, bubbleColor: '#ffe0ec', shoes: 0x29b6f6 });
-  h.onBeforeKnock = (imp, src) => { if (chance(0.8)) { h.say(pick(LINES.hollie.dodge)); return false; } return true; };
+  const h = new Person({ kind: 'hollie', name: 'Hollie', tag: 'Hollie', label: 'Hollie', x: FIX.lapPath[0].x, z: FIX.lapPath[0].z, look: CAST.hollie(), walkSpeed: 0.75, bubbleColor: '#ffe0ec' });
   h.onGetUp = () => { h.say('BABE! I\'m mid-run!'); st.leg = 0; };
   const ian = makeIanPerson(12.4, 3.6); ian.immune = true; ian.faceTowards(V(16, 0, 0));
   // Water station
@@ -250,7 +252,7 @@ function fiveK() {
   const tbl = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.8), mat(0x90caf9)); tbl.position.set(11.6, 0.4, -2.9); decor(tbl);
   const l = labelSprite('WATER STATION', { bg: '#1e88e5', size: 26, scale: 0.14 }); l.position.set(11.6, 1.3, -2.9); decor(l);
   inter({ pos: V(11.6, 0.9, -2.9), radius: 2.2, label: () => 'Grab a water bottle', action: () => { const w = spawnDrink('water', V(11.6, 1.0, -2.9)); G.player.give(w); } });
-  G.player.pos.set(12.6, 0, -2.4); G.player.yaw = -Math.PI / 2;
+  resetPlayer(V(12.6, 0, -2.4), -Math.PI / 2);
   const st = { handed: 0, laps: 0, leg: 0, cheer: 3 };
   const goNext = () => { const tgt = FIX.lapPath[st.leg % 4]; h.walkTo(tgt, () => { st.leg++; if (st.leg % 4 === 0) { st.laps++; h.say(`Lap ${st.laps}!`, { dur: 1.5 }); } goNext(); }, true); };
   setTimeout(goNext, 500);
@@ -326,7 +328,7 @@ export function startBoss(standalone) {
   ian.say("RIGHT. THE CLUB'S HERE. CAR PARK, LEWY. NOW!", true);
   toast("🚐 FINALE: Ian's stormed out to the car park with the whole fishing club! Go through the gate by the duck pond and calm him down.", 6);
   for (let i = 0; i < 4; i++) {
-    const m = new Person({ kind: 'club', name: 'Fishing club', tag: 'Fishing club', x: 29 + rand(-2, 3), z: rand(-6, 6), camo: true, hat: 'camo', hair: 0x8e8e8e, scale: rand(0.95, 1.05), wide: rand(1.0, 1.3), walkSpeed: 0.9 });
+    const m = new Person({ kind: 'club', name: 'Fishing club', tag: 'Fishing club', x: 29 + rand(-2, 3), z: rand(-6, 6), look: oldManLook({ pattern: 'camo', trousersCamo: true, jacket: null, hat: 'camo', sleeves: 'long', hunch: 0 }), walkSpeed: 0.9 });
     m.isClub = true; m.onGetUp = () => {};
     boss.club.push(m);
   }
@@ -402,7 +404,7 @@ function updateBoss(dt) {
   }
   // Pints and bait delivered to Ian
   for (const it of G.items) {
-    if (it.held || it.dead || it.frozen) continue;
+    if (it.held || it.dead || it.frozen || it.prop) continue;
     if (it.pos.distanceTo(ian.p.p[PELVIS]) > 1.1 || it.age < 0.3) continue;
     if (it.drink === 'pint') { it.remove(); calm(20, it.fill < 0.5 ? 'Half a pint? ...Go on then, Lewy.' : 'That\'s more like it, Lewy.'); }
     else if (it.cls === 'bait') { it.remove(); calm(30, "MY MAGGOTS! Lewy, you're a good lad."); }

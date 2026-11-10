@@ -3,7 +3,9 @@ import * as THREE from 'three';
 import { G, V, rand, randi, pick, chance, clamp, weighted, emit, on, hasUpgrade } from './state.js';
 import { TABLE_DEFS, FIX } from './world.js';
 import { Person, PELVIS, HEAD } from './people.js';
+import { CAST, oldManLook, kidLook } from './models.js';
 import { Item, spawnPlate, spawnDrink } from './physics.js';
+import { MAIN_DISHES as MAINS } from './data.js';
 import { CUSTOMER_TYPES, DISHES, DRINKS, LINES, FRIENDS, FRIEND_LOOKS, REVIEWS, MAIN_DISHES, iconFor, isDrink, nameFor } from './data.js';
 import { dynamicTexture, roundRect } from './textures.js';
 import { sfx, speak } from './audio.js';
@@ -94,6 +96,22 @@ function drawTableIcon(t) {
 }
 
 // ---------------------------------------------------------------- groups
+// The locals are old men (plus the odd grandkid); the lads keep their own looks.
+function customerLook(typeKey, name, isKid, camo, season, opts) {
+  if (name && CAST[name]) return CAST[name]();
+  if (isKid) return kidLook(season === 'christmas' ? { hat: 'santa' } : {});
+  const type = CUSTOMER_TYPES[typeKey];
+  const L = oldManLook();
+  if (opts.colors) { L.shirt = pick(opts.colors); L.jacket = null; L.collar = 0xffffff; }
+  if (type.fan) Object.assign(L, { jacket: null, sleeves: 'short', shirt: pick(type.colors), backText: String(randi(2, 11)), collar: 0xffffff });
+  if (typeKey === 'stag') Object.assign(L, { jacket: null, sleeves: 'short', shirt: 0xff3355, backText: 'STAG 70', hat: chance(0.5) ? 'beanie' : null, hatColor: 0x222222 });
+  if (typeKey === 'critic') Object.assign(L, { jacket: 0x263238, shirt: 0xffffff, glasses: true, hat: null, collar: 0x8e0000 });
+  if (typeKey === 'karen') Object.assign(L, { facial: 'walrus', glasses: true });
+  if (typeKey === 'influencer') Object.assign(L, { jacket: 0xff88cc, hat: null, glasses: true });
+  if (season === 'christmas') Object.assign(L, { jacket: null, shirt: pick([0xc62828, 0x2e7d32]), shirt2: 0xffffff, pattern: 'hoops', sleeves: 'long', hat: chance(0.7) ? 'santa' : L.hat });
+  if (camo) Object.assign(L, { pattern: 'camo', trousersCamo: true, hat: 'camo', jacket: null, sleeves: 'long' });
+  return L;
+}
 let groupId = 0;
 export function spawnGroup(typeKey, opts = {}) {
   const type = CUSTOMER_TYPES[typeKey];
@@ -116,7 +134,7 @@ export function spawnGroup(typeKey, opts = {}) {
     const costume = season === 'halloween' ? pick(['ghost', 'skeleton', 'witch', 'pumpkin', null]) : null;
     const p = new Person({
       kind: 'customer', name, tag: name || undefined, label: name,
-      wide: look.wide, heavy: look.heavy, costume,
+      look: customerLook(typeKey, name, isKid, camo, season, opts), heavy: look.heavy, costume,
       hatType: season === 'christmas' && chance(0.7) ? 'santa' : (costume === 'witch' ? 'witch' : undefined),
       x: FIX.spawn.x + rand(-1.5, 1.5), z: FIX.spawn.z + rand(-0.3, 0.3),
       scale: isKid ? 0.62 : (look.scale || (type.scale || 1) * rand(0.94, 1.04)), headScale: isKid ? 1.25 : 1,
@@ -126,7 +144,7 @@ export function spawnGroup(typeKey, opts = {}) {
       walkSpeed: type.walk * rand(0.9, 1.1), kitNumber: type.fan ? String(randi(1, 11)) : undefined, shortSleeves: type.fan || type.stag,
     });
     p.group = g; p.isKid = isKid;
-    if (type.spectacular) p.getUpDelay = 3.2;
+    if (type.spectacular) p.getUpDelay = 3.6;
     p.onGetUp = () => afterGetUp(p);
     g.members.push(p);
   }
@@ -195,10 +213,34 @@ function seatGroup(g, t) {
     seat.taken = m; m.seat = seat;
     m.walkTo(seat.pos, () => {
       m.sitAt(seat);
-      if (g.members.every((x) => x.state === 'sit')) { g.state = 'seated'; g.browseTimer = rand(4, 7); emit('groupSeated', g); }
+      if (g.members.every((x) => x.state === 'sit') && g.state !== 'seated') { g.state = 'seated'; g.browseTimer = rand(4, 7); dressTable(t, g); emit('groupSeated', g); }
     });
   });
   sfx.good();
+}
+
+// Pub dressing: what's already on the table when people sit down (all real, grabbable, throwable).
+export function dressTable(t, g) {
+  t.props ||= [];
+  const toTable = (seat, k) => {
+    const dx = t.x - seat.pos.x, dz = t.z - seat.pos.z, l = Math.hypot(dx, dz) || 1;
+    const inset = Math.min(0.32, (Math.abs(dx) > Math.abs(dz) ? t.w : t.d) / 2 - 0.12);
+    const side = V(-dz / l, 0, dx / l);
+    return V(t.x - (dx / l) * inset + side.x * k, t.top + 0.12, t.z - (dz / l) * inset + side.z * k);
+  };
+  g.members.forEach((m) => {
+    if (!m.seat || m.isKid && chance(0.7)) return;
+    const r = Math.random();
+    if (r < 0.75) {
+      const drink = weighted(m.isKid ? { mocktail: 1 } : { pint: 5, wine: 3, water: 1 });
+      const it = spawnDrink(drink, toTable(m.seat, 0.12));
+      it.setFill(rand(0.35, 0.95)); it.prop = true; t.props.push(it);
+    }
+    if (chance(0.35)) {
+      const pl = spawnPlate(pick(MAINS), null, toTable(m.seat, -0.14));
+      pl.prop = true; t.props.push(pl);
+    }
+  });
 }
 
 function freeSeatsOk(t, g) { return t.state === 'free' && t.seatList.length >= g.members.length; }
@@ -219,8 +261,8 @@ function makeOrder(g) {
   return order;
 }
 function weightedDrink(t) {
-  if (t === 'stag' || t === 'fan' || t === 'friends') return weighted({ pint: 8, monster: 1, water: 0.5 });
-  return weighted({ pint: 4, mocktail: 2, water: 1.2, monster: 0.5 });
+  if (t === 'stag' || t === 'fan' || t === 'friends') return weighted({ pint: 8, wine: 1, monster: 1, water: 0.5 });
+  return weighted({ pint: 4, wine: 2.5, mocktail: 1, water: 1.2, monster: 0.5 });
 }
 
 function takeOrder(g) {
@@ -283,7 +325,7 @@ function reconcileKitchen(dt) {
     if (!t.group || (t.state !== 'waiting' && t.state !== 'eating')) continue;
     for (const id of t.needs) if (!isDrink(id)) { need[id] = (need[id] || 0) + 1; firstTable[id] ??= t.id; }
   }
-  for (const it of G.items) if (it.kind === 'plate' && !it.dead && !it.frozen) have[it.dish] = (have[it.dish] || 0) + 1;
+  for (const it of G.items) if (it.kind === 'plate' && !it.dead && !it.frozen && !it.prop) have[it.dish] = (have[it.dish] || 0) + 1;
   for (const k of kitchenQueue) have[k.dish] = (have[k.dish] || 0) + 1;
   for (const id in need) for (let n = have[id] || 0; n < need[id]; n++) requeueDish(id, firstTable[id]);
 }
@@ -299,7 +341,7 @@ export const passPlates = () => G.items.filter((it) => it.kind === 'plate' && it
 
 // Deliveries: called when an item comes to rest or is dropped.
 export function checkDelivery(it) {
-  if (it.held || it.frozen || it.dead || (it.kind !== 'plate' && it.kind !== 'drink')) return;
+  if (it.prop || it.held || it.frozen || it.dead || (it.kind !== 'plate' && it.kind !== 'drink')) return;
   for (const t of G.tables) {
     if (!t.group && t.id !== 'ian') continue;
     if (Math.abs(it.pos.x - t.x) > t.w / 2 + 0.06 || Math.abs(it.pos.z - t.z) > t.d / 2 + 0.06) continue;
@@ -385,7 +427,8 @@ function leave(g, angry) {
     t.group = null;
     t.seatList.forEach((s) => { s.taken = null; });
     if (angry && t.seatList[0]?.chair) { const c = pick(t.seatList).chair; c.rotation.z = Math.PI / 2; c.position.y = 0.22; }
-    setTableState(t, t.served.length || angry ? 'dirty' : (t.state === 'closed' ? 'closed' : 'free'));
+    const leftovers = (t.props || []).some((it) => !it.dead && !it.held && Math.abs(it.pos.x - t.x) < t.w / 2 + 0.2 && Math.abs(it.pos.z - t.z) < t.d / 2 + 0.2);
+    setTableState(t, t.served.length || angry || leftovers ? 'dirty' : (t.state === 'closed' ? 'closed' : 'free'));
     if (t.state === 'dirty') t.icon.visible = true;
   }
   g.members.forEach((m) => {
@@ -495,6 +538,7 @@ export function registerServingInteractables() {
   });
   pourSpot(FIX.taps, 'pint', 'Pour a pint (hold)', 0.9);
   pourSpot(FIX.water, 'water', 'Tap water', 0.3);
+  pourSpot(FIX.wine, 'wine', 'Pour a glass of red (hold)', 0.6);
   pourSpot(FIX.mocktail, 'mocktail', 'Mocktail (hold)', 0.6);
   pourSpot(FIX.fridge, 'monster', 'Grab a Monster', 0);
 }
@@ -502,7 +546,7 @@ export function registerServingInteractables() {
 function wipeTable(t) {
   for (const it of t.served) it.remove();
   for (const it of G.items.slice()) if (!it.held && Math.abs(it.pos.x - t.x) < t.w / 2 + 0.1 && Math.abs(it.pos.z - t.z) < t.d / 2 + 0.1 && it.pos.y > t.top - 0.05 && it.pos.y < t.top + 0.5 && it.cls !== 'golden' && it.cls !== 'ball') it.remove();
-  t.served = []; t.needs = []; t.order = [];
+  t.served = []; t.needs = []; t.order = []; t.props = [];
   for (const s of t.seatList) if (s.chair) { s.chair.position.copy(s.chairHome.pos); s.chair.rotation.set(0, s.chairHome.yaw, 0); }
   setTableState(t, G.shift.cfg.tables.includes(t.id) ? 'free' : 'closed');
   sfx.good();

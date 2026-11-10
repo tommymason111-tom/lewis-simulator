@@ -39,23 +39,34 @@ On the Quest, your order pad and meters sit on your left wrist. Look at your han
 
 **Waiter loop**: seat groups from the door, crouch to take orders (standing over people like a lamp post costs tips), spike the ticket, pour pints/Monsters/mocktails/tap water at the bar, carry plates from the pass (stack up to 3 per hand), take the bill, wipe the table. Each table has a pint-glass patience meter. Drinks slosh if you rush, plates smash if dropped, and the kitchen re-cooks anything that gets smashed or stolen.
 
-**The Oysterfleet**:
-- The pub, with low "Mind Your Head" beams. Walk into one standing up and you get a head-bonk (thunk, blurry screen, the regulars cheer).
-- Bar, kitchen pass and ticket spike.
-- Kids' ball pit, dessert trolley and fruit machine (now with a working lever).
-- A TV you can change by hitting it with the ball.
-- **Function room** (opens Wednesday): pool table, dartboard, karaoke stage, jukebox, and a long table for parties.
-- **Beer garden**: a proper pitch with a bin goal at each end, duck pond, picnic tables and a BBQ.
-- **Car park**: Ian's van (it plays country music) and a skip.
-- The light changes with the time of the shift.
+**The Oysterfleet** (the pub from the Ronnie Simulator design doc):
+- **Inside**: dark wood bar with brass taps, backlit bottle shelves, an etched mirror, sticky patterned carpet, beams, wooden booths, amber pendant lamps, a real fire with a mantel, frosted windows, two big screens, a fruit machine ("The Chip Machine"), and the Ronnie Simulator's joke signs (Staff of the Month: Ronnie, the staff rota, "Please do not feed the barman" and more).
+- **Head bonks**: "Mind Your Head" beams, door frames and the pendant lampshades all catch Lewis on the forehead.
+- **Function room** (opens Wednesday): pool, darts, karaoke stage, jukebox, a party table.
+- **Outside**:
+  - A brick front with a pitched roof, chimney, hanging baskets and a swinging oyster pub sign.
+  - The street with lamp posts, a bench, an A-board and houses across the road.
+  - **Beer garden**: decking, picnic tables with parasols, fairy lights, flower beds, patio heaters, a smoking shelter, the duck pond, a kids' slide, the BBQ.
+  - **Car park**: parked cars, Ian's van, the skip, lamp posts.
+  - **5-a-side pitch** (through the gate at the back of the garden): astroturf, floodlights, a chain-link cage, proper goals with nets and a dugout.
+
+**Glasses, beers, wines and plates**: every occupied table gets drinks and plates on it when people sit down, and the bar has the regulars' pints, wine glasses and empties. All of it can be picked up and thrown at anyone, or anywhere.
 
 **People**:
 - **Ronnie**: stutter speech bubbles while things go wrong behind you, plus 9 kinds of bad "help". Send him to the staff room, radio him over, hand him a Monster, or crouch and arm-wrestle him.
 - **Ian**: a big lad (about Noah's size) with white skin and grey hair, in full camo every shift. His Kick-Off meter, the "Dad, sit down" talk, quiz night, his ever-growing fishing story, the tannoy, paying with a fish.
-- **Hollie**: serve her perfectly to calm every table. She dodges throws, chases runners, throws you a protein bar when your stamina's low, and her fitness watch counts your steps.
+- **Hollie**: serve her perfectly to calm every table. You can pick her up and throw her like anyone else (she won't speak to you for a minute afterwards). She chases runners, throws you a protein bar when your stamina's low, and her fitness watch counts your steps.
 - **Customers**: families, pensioners, stag dos, complainers, influencers, football fans, a secret food critic, and the lads as cameos (Noah has Ian's build).
 
-**Ragdolls**: everyone is an active ragdoll. You can grab anyone by the head, arm, belt or ankle and throw them, and they knock over whoever they hit. Big throws trigger slow-mo. Bonus spots to land people: ball pit, dessert trolley, duck pond, bins, fruit machine, pool table, karaoke stage and the skip.
+**Characters** (built from the Ronnie Simulator cast):
+- **Ronnie**: black buzz cut, goatee, blue "RONNIE 10" shirt, grey joggers, sliders, MONSTOR can in his pocket.
+- **Lewis** (you, seen when you look down or take a selfie): 6ft 3 gym bro, curly mullet, patchy stubble, Palace-style stripes under the apron.
+- **Ian**: big, white skin, grey hair, full camo.
+- **Hollie**: same level of detail as the others.
+- **The locals**: all old men (flat caps, cardigans, moustaches, a slight stoop).
+- **The lads**: their Ronnie Simulator looks and club colours.
+
+**Ragdolls**: everyone is an active ragdoll with elbows and knees, using the Ronnie Simulator rules: floaty 0.7× gravity, bouncy landings, a random spin when launched, getting up after 2–4 seconds with stars, comic impact words (POW! BOING! WALLOP!), and at most 6 ragdolls at once for Quest performance. You can grab anyone by the head, arm, belt or ankle and throw them, and they knock over whoever they hit. Big throws trigger slow-mo. Bonus spots to land people: ball pit, dessert trolley, duck pond, bins, fruit machine, pool table, karaoke stage and the skip.
 
 **Football**: kick, head, dribble and do keepie-uppies, with commentary. Football fans tip for a worldie. Score while the TV team scores for a big tip. Toilet-door goal-line technology. The chef sends the ball back if it goes through the hatch.
 

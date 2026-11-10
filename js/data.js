@@ -12,6 +12,7 @@ export const DISHES = {
 };
 export const DRINKS = {
   pint:     { name: 'Pint', icon: '🍺' },
+  wine:     { name: 'Glass of red', icon: '🍷' },
   monster:  { name: 'Monster', icon: '🥫' },
   mocktail: { name: 'Mocktail', icon: '🍹' },
   water:    { name: 'Tap water', icon: '💧' },
@@ -183,6 +184,7 @@ export const COSMETICS = [
   { id: 'apron-camo', slot: 'apron', name: 'Camo apron ("for Dad")', camo: true, cost: 30 },
   { id: 'apron-black', slot: 'apron', name: 'Smart black apron', color: 0x111111, cost: 20 },
   { id: 'apron-pink', slot: 'apron', name: "Hollie's pink apron", color: 0xff4f8b, cost: 20 },
+  { id: 'shirt-palace', slot: 'shirt', name: 'Palace-style stripes (LEWIS 6)', color: 0xe8303a, color2: 0x1b3fa0, pattern: 'stripes', kit: 'LEWIS 6', cost: 0 },
   { id: 'shirt-white', slot: 'shirt', name: 'White work shirt', color: 0xffffff, cost: 0 },
   { id: 'shirt-blue', slot: 'shirt', name: 'Football shirt (blue, LEWIS 9)', color: 0x1d4fd8, kit: 'LEWIS 9', cost: 40 },
   { id: 'shirt-red', slot: 'shirt', name: 'Football shirt (red, LEWIS 9)', color: 0xd81d1d, kit: 'LEWIS 9', cost: 40 },

@@ -209,7 +209,7 @@ function panel(which) {
         <tr><td>Radio Ronnie</td><td>X</td><td>R</td><td>RONNIE</td></tr>
         <tr><td>Pause</td><td>Y</td><td>Esc / P</td><td>II</td></tr>
       </table>
-      <p>Tips: you can stack up to 3 plates per hand. Pints slosh if you rush. Hand Ronnie a Monster to make him useful. Hollie is fast: she dodges. Kick the ball at the TV to change the channel.</p>`;
+      <p>Tips: you can stack up to 3 plates per hand. Pints slosh if you rush. Hand Ronnie a Monster to make him useful. Everything on the tables and the bar (pints, wine, plates) can be grabbed and thrown, and so can everyone, Hollie included. Kick the ball at the TV to change the channel.</p>`;
   }
 }
 

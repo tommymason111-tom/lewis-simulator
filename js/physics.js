@@ -5,6 +5,30 @@ import { collideSphere } from './world.js';
 import { mat } from './world.js';
 import { DISHES } from './data.js';
 import { labelSprite } from './textures.js';
+import { mergeGeometries } from '../lib/BufferGeometryUtils.js';
+
+const vcMat = new THREE.MeshLambertMaterial({ vertexColors: true });
+// Bake all plain opaque child meshes of an item into one vertex-coloured mesh.
+function mergeParts(group) {
+  if (!group.isGroup) return group;
+  group.updateMatrixWorld(true);
+  const geos = [], drop = [];
+  for (const c of group.children) {
+    if (!c.isMesh || c.userData.keep || c === group.userData.liquid || c === group.userData.head || (group.userData.flames || []).includes(c)) continue;
+    const m = c.material; if (Array.isArray(m) || m.transparent || m.map || !m.color) continue;
+    let g = c.geometry.index ? c.geometry.toNonIndexed() : c.geometry.clone();
+    for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'normal') g.deleteAttribute(k);
+    g.applyMatrix4(c.matrix);
+    const n = g.attributes.position.count, col = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) { col[i * 3] = m.color.r; col[i * 3 + 1] = m.color.g; col[i * 3 + 2] = m.color.b; }
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    geos.push(g); drop.push(c);
+  }
+  if (geos.length < 2) return group;
+  drop.forEach((c) => group.remove(c));
+  group.add(new THREE.Mesh(mergeGeometries(geos, false), vcMat));
+  return group;
+}
 import { sfx } from './audio.js';
 
 const geo = {
@@ -53,6 +77,15 @@ function drinkMesh(kind) {
     const can = new THREE.Mesh(geo.can, mat(0x111111)); g.add(can);
     const logo = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.1, 0.03), new THREE.MeshBasicMaterial({ color: 0x7cfc00 }));
     logo.position.set(0.034, 0, 0); g.add(logo);
+    return g;
+  }
+  if (kind === 'wine') {
+    const glassM = new THREE.MeshLambertMaterial({ color: 0xddeeff, transparent: true, opacity: 0.35 });
+    const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.03, 0.08, 12, 1, true), glassM); bowl.position.y = 0.035; g.add(bowl);
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.08, 6), glassM); stem.position.y = -0.04; g.add(stem);
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.006, 12), glassM); base.position.y = -0.078; g.add(base);
+    const wine = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.03, 0.04, 12), mat(0x7b0d1e)); wine.position.y = 0.012; g.add(wine);
+    g.userData.liquid = wine; g.userData.wine = true;
     return g;
   }
   const glass = new THREE.Mesh(geo.glass, new THREE.MeshLambertMaterial({ color: 0xddeeff, transparent: true, opacity: 0.35 }));
@@ -118,7 +151,7 @@ export class Item {
       mesh = new THREE.Mesh(geo.shard, mat(opts.color || 0xffffff));
       this.r = 0.03; this.half = 0.02; this.cls = 'shard'; this.breakable = false; this.bounce = 0.3;
     }
-    this.mesh = mesh;
+    this.mesh = mergeParts(mesh);
     this.pos = V();
     if (opts.pos) this.pos.copy(opts.pos);
     this.sync();
@@ -138,7 +171,8 @@ export class Item {
   setFill(f) {
     this.fill = Math.max(0, f);
     const l = this.mesh.userData.liquid;
-    if (l) { l.scale.y = Math.max(0.02, this.fill); l.position.y = -0.075 + 0.07 * this.fill; }
+    if (l && this.mesh.userData.wine) { l.scale.y = Math.max(0.02, this.fill); l.position.y = -0.008 + 0.02 * this.fill; }
+    else if (l) { l.scale.y = Math.max(0.02, this.fill); l.position.y = -0.075 + 0.07 * this.fill; }
     const h = this.mesh.userData.head;
     if (h) { h.position.y = -0.07 + 0.14 * this.fill + 0.01; h.scale.y = 1 + this.foam * 3; }
   }
