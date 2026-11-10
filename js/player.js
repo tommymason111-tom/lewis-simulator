@@ -55,8 +55,9 @@ function lewisLook() {
 }
 function makeLewis() {
   if (G.lewis) G.lewis.destroy();
-  const p = new Person({ kind: 'lewis', name: 'Lewis', look: lewisLook(), noArms: true, splitHead: true, noRegister: true });
-  p.headMesh.layers.set(SELFIE_LAYER);
+  // Lewis's real model (from his scan) when it's loaded; the built-in look otherwise
+  const p = new Person({ kind: 'lewis', name: 'Lewis', model: 'lewis', look: lewisLook(), noArms: true, splitHead: true, noRegister: true });
+  if (p.headMesh) p.headMesh.layers.set(SELFIE_LAYER);
   p.bubble.sprite.visible = false;
   G.lewis = p;
   return p;
@@ -443,7 +444,7 @@ function updateBody() {
   const f = G.player.forward();
   L.root.set(h.x, 0, h.z).addScaledVector(f, -0.1);
   L.yaw = Math.atan2(f.x, f.z);
-  const standHead = 1.62 * L.scale;
+  const standHead = L.poseMap ? L.poseMap.head : 1.62 * L.scale;
   L.lift = Math.min(0, h.y - standHead);
   const moving = G.player.vel.lengthSq() > 0.05;
   L.state = moving ? 'walk' : 'stand'; L.pose = 'stand';

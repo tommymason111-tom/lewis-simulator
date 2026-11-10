@@ -71,9 +71,9 @@
 <div id="chooser" class="screen"></div>
 <div id="pause" class="screen"></div>
 <div id="results" class="screen"></div>
-<div id="loading">Opening the Oysterfleet…</div>
+<div id="loading">Opening the Oysterfleet… (loading Lewis, Ian and Ben)</div>
 <script type="module">
-  import('./js/main.js').then(() => document.getElementById('loading').remove()).catch((e) => {
+  import('./js/main.js').catch((e) => {
     document.getElementById('loading').textContent = 'Could not load the game: ' + e.message;
     console.error(e);
   });

@@ -4,7 +4,7 @@ import { G, V, rand, randi, pick, chance, clamp, emit, on, shuffle } from './sta
 import { Person, HEAD, PELVIS, NECK, LH, RH } from './people.js';
 import { FIX, inGarden, mat } from './world.js';
 import { Item, spawnDrink } from './physics.js';
-import { LINES, TALK_OPTIONS, QUIZ, DISHES, IAN_LOOK } from './data.js';
+import { LINES, TALK_OPTIONS, QUIZ, DISHES, IAN_LOOK, DRINKS, isDrink } from './data.js';
 import { CAST, oldManLook } from './models.js';
 import { groups, passPlates, runnerCaught, tableById } from './serving.js';
 import { stutterize } from './textures.js';
@@ -362,7 +362,7 @@ class Ronnie {
 // ---------------------------------------------------------------- Ian
 // Ian: a big lad (about Noah's size), white skin, grey hair, full camo every single shift.
 export function makeIanPerson(x, z, opts = {}) {
-  return new Person(Object.assign({ kind: 'ian', name: 'Ian', tag: 'Ian (Dad)', label: 'Ian', x, z, look: CAST.ian(), heavy: 2.4, prop: propRod(), bubbleColor: '#e8e8d0', walkSpeed: 0.95 }, opts));
+  return new Person(Object.assign({ kind: 'ian', name: 'Ian', tag: 'Ian (Dad)', label: 'Ian', x, z, model: 'ian', wide: 1.5, look: CAST.ian(), heavy: 2.4, prop: propRod(), bubbleColor: '#e8e8d0', walkSpeed: 0.95 }, opts));
 }
 class Ian {
   constructor() {
@@ -721,12 +721,113 @@ function makeRegulars() {
   const ip = spawnDrink('pint', V(8.75, 0.9, 5.15)); ip.setFill(0.3); ip.prop = true;
   return regs;
 }
-function makeChef() {
-  const c = new Person({ kind: 'chef', name: 'Chef', x: 5.3, z: -9.0, yaw: 0, bubbleColor: '#ffffff', look: { scale: 1.05, wide: 1.2, belly: 0.6, skin: 0xeec5ad, hair: 0x3b2412, hairStyle: 'short', facial: 'moustache', shirt: 0xffffff, sleeves: 'long', trousers: 0x37474f, hat: 'chef', apron: 0xeeeeee } });
-  c.immune = true;
-  c.onBeforeKnock = () => false;
-  return c;
+// Ben: the chef at the Fleet. Runs the kitchen behind the pass, and now and then comes out
+// to hand Lewis food that's been sitting on the pass, or to tell him about a table's order.
+const BEN_DOOR = V(0.5, 0, -7.15), BEN_HOME = V(5.3, 0, -9.0);
+class Ben {
+  constructor() {
+    this.p = new Person({ kind: 'chef', name: 'Ben', tag: 'Ben (Chef)', label: 'Ben', x: BEN_HOME.x, z: BEN_HOME.z, yaw: 0, model: 'ben', wide: 1.1, bubbleColor: '#ffffff',
+      look: { scale: 1.03, wide: 1.1, belly: 0.4, skin: 0xeec5ad, hair: 0x5a3825, hairStyle: 'short', shirt: 0xffffff, sleeves: 'long', trousers: 0x37474f, hat: 'chef', apron: 0xeeeeee } });
+    this.p.immune = true;
+    this.p.onBeforeKnock = () => this.out;
+    this.p.onGetUp = () => {
+      this.say(pick(["Oi! I'm the CHEF, Lewis!", "I've got a kitchen to run, you big lump!", 'Do that again and you\'re eating Ronnie\'s pie.']));
+      if (this.out) this.run(this.goBack());
+    };
+    this.out = false; this.seq = null; this.carry = []; this.next = rand(25, 40);
+  }
+  say(t, important) { this.p.say(t, { dur: 3.2 }); speak(t, 'chef', important); }
+  run(gen) {
+    this.seq?.abort();
+    this.seq = new Seq(this.p, gen, (aborted) => { this.seq = null; if (aborted) this.dropCarry(); });
+  }
+  dropCarry() { for (const it of this.carry) { if (it.held && it.held.npc === this) { it.held = null; it.sleeping = false; it.vel.set(rand(-1, 1), 1, rand(-1, 1)); } } this.carry = []; }
+  *comeOut() {
+    this.p.hidden = true; yield 0.6;
+    this.p.root.copy(BEN_DOOR); this.p.yaw = 0; this.p.state = 'stand'; this.p.setPose('stand'); this.p.snapToPose();
+    this.p.hidden = false; this.out = true; this.p.immune = false;
+    sfx.blip();
+  }
+  *goBack() {
+    yield* walk(this.p, BEN_DOOR.clone());
+    this.p.hidden = true; this.out = false; this.p.immune = true;
+    yield 0.5;
+    this.p.root.copy(BEN_HOME); this.p.yaw = 0; this.p.snapToPose(); this.p.hidden = false;
+  }
+  *toLewis(maxTime = 14) {
+    let t = 0;
+    while (t < maxTime) {
+      const target = G.player.pos.clone().addScaledVector(G.player.forward(), 0.9);
+      if (this.p.root.distanceTo(G.player.pos) < 1.4) break;
+      this.p.walkTo(target, null, this.p.root.distanceTo(G.player.pos) > 5);
+      yield 0.5; t += 0.5;
+    }
+    this.p.stopWalking(); this.p.faceTowards(G.player.pos);
+    return t < maxTime;
+  }
+  *bringPlate(pl) {
+    pl.held = { npc: this }; pl.onPass = false; pl.sleeping = false; this.carry = [pl];
+    const what = DISHES[pl.dish]?.name || 'food';
+    this.say(pick([`Hold on, that's table ${pl.forTable}'s ${what}!`, 'This has been on the pass AGES.']));
+    yield* this.comeOut();
+    const reached = yield* this.toLewis();
+    if (pl.dead || !this.carry.includes(pl)) { yield* this.goBack(); return; }
+    if (reached && G.hands.some((h) => !h.held)) {
+      this.carry = []; pl.held = null; G.player.give(pl);
+      this.say(pick([`Table ${pl.forTable}, ${what}. Go go go!`, `${what} for table ${pl.forTable}. Don't you dare drop it, Lewis.`, `Table ${pl.forTable}! It's getting cold, mate!`]), true);
+      G.toast(`👨‍🍳 Ben handed you table ${pl.forTable}'s ${what}.`, 3);
+      emit('benDelivered', pl);
+    } else {
+      this.say(reached ? "Your hands are full! I'll put it back on the pass." : "Where've you gone? Back on the pass it goes.");
+      yield* walk(this.p, V(pl.forTable ? 4.5 : 4.5, 0, -6.9));
+      this.carry = []; pl.held = null; pl.onPass = true; pl.passTime = G.time;
+      pl.pos.set(rand(FIX.pass.x0, FIX.pass.x1), FIX.pass.y + 0.14, FIX.pass.z); pl.vel.set(0, 0, 0);
+    }
+    yield 1;
+    yield* this.goBack();
+  }
+  *tellLewis(msg) {
+    this.say('Lewis! LEWIS!');
+    yield* this.comeOut();
+    yield* this.toLewis(12);
+    this.say(msg, true);
+    G.toast('👨‍🍳 Ben: ' + msg, 3.5);
+    yield 3.2;
+    yield* this.goBack();
+  }
+  // What's the most urgent thing to tell Lewis about?
+  findIssue() {
+    const tabs = G.tables.filter((t) => t.group && typeof t.id === 'number');
+    const urgency = (t) => 1 - t.group.patience / t.group.maxPatience;
+    const pickT = (f) => tabs.filter(f).sort((a, b) => urgency(b) - urgency(a))[0];
+    let t;
+    if ((t = pickT((t) => t.state === 'ordered'))) return `I've got no ticket for table ${t.id}! Spike it on the pass, mate.`;
+    if ((t = pickT((t) => t.state === 'ready' && urgency(t) > 0.2))) return `Table ${t.id} have been ready to order for ages. Crouch down and take it!`;
+    if ((t = pickT((t) => t.state === 'bill'))) return `Table ${t.id} want the bill. Card machine, go!`;
+    if ((t = pickT((t) => t.state === 'waiting' && t.needs.some((n) => isDrink(n))))) return `Table ${t.id} are still waiting on drinks: ${t.needs.filter((n) => isDrink(n)).map((n) => DRINKS[n]?.name || n).join(', ')}.`;
+    const dirty = G.tables.find((t) => t.state === 'dirty');
+    if (dirty) return `Table ${dirty.id} is minging. Give it a wipe, Lewis.`;
+    if (G.groupsRef?.some((g) => g.state === 'queue')) return "There's people stood at the door waiting to be seated!";
+    return null;
+  }
+  update(dt) {
+    this.seq?.update(dt);
+    this.carry.forEach((it, i) => { if (!it.dead) { it.pos.copy(this.p.p[i % 2 ? LH : RH]).add(V(0, 0.15, 0.1)); it.vel.set(0, 0, 0); } });
+    if (!this.out && !this.seq) {
+      this.p.root.x = BEN_HOME.x + Math.sin(G.shift.time * 0.5) * 1.5; this.p.yaw = 0;
+      if (chance(dt * 0.02)) this.p.say(pick(['SERVICE!', 'Hands please!', "Where's that tall lad?", 'Two fish, one roast, LET\'S GO!']), { dur: 2 });
+    }
+    if (this.seq || this.out || G.shift.cfg.minigame && G.shift.cfg.minigame !== 'datenight' || G.shift.cfg.tables.length === 0) return;
+    this.next -= dt;
+    if (this.next > 0) return;
+    this.next = rand(30, 55);
+    const stale = passPlatesFor().filter((it) => G.time - (it.passTime ?? G.time) > 12).sort((a, b) => a.passTime - b.passTime)[0];
+    if (stale && chance(0.7)) { this.run(this.bringPlate(stale)); return; }
+    const msg = this.findIssue();
+    if (msg) this.run(this.tellLewis(msg));
+  }
 }
+function passPlatesFor() { return passPlates(); }
 
 export function regularsCheer(text) {
   const r = pick(G.regulars || []);
@@ -737,7 +838,8 @@ export function regularsCheer(text) {
 
 // ---------------------------------------------------------------- setup / update
 export function spawnStaff() {
-  G.chef = makeChef();
+  G.ben = new Ben();
+  G.chef = G.ben.p;
   if (G.shift.cfg.noStaff) { G.regulars = []; G.ronnie = null; G.ian = null; G.hollie = null; G.shift.hollieAt = Infinity; return; }
   G.regulars = makeRegulars();
   G.ronnie = new Ronnie();
@@ -754,8 +856,7 @@ export function updateNPCs(dt) {
   G.hollie?.update(dt);
   updateTalk(dt);
   // Chef shouts "SERVICE!" sometimes
-  if (G.chef && chance(dt * 0.02)) G.chef.say(pick(['SERVICE!', 'Hands please!', 'Where\'s that tall lad?']), { dur: 2 });
-  if (G.chef) { G.chef.root.x = 5.3 + Math.sin(G.shift.time * 0.5) * 1.5; G.chef.yaw = 0; }
+  G.ben?.update(dt);
 }
 
 // Hollie's table + Ian need their own interactables (the generic table ones skip special tables).

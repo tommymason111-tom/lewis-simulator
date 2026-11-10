@@ -55,13 +55,13 @@ export function studioCharacters() {
     Ian: flat(LINES.ian).concat(['LEWY! LEWYYYY!']),
     Ronnie: flat(LINES.ronnie),
     Hollie: flat(LINES.hollie),
-    Chef: LINES.chef,
+    'Ben (chef)': LINES.chef,
     'Lewis (karaoke)': LINES.karaoke,
   };
   for (const f of FRIENDS) chars[f] = LINES.friends[f] || [];
   return chars;
 }
-const whoFor = (c) => ({ Ian: 'ian', Ronnie: 'ronnie', Hollie: 'hollie', Chef: 'chef', 'Lewis (karaoke)': 'lewis' }[c] || c);
+const whoFor = (c) => ({ Ian: 'ian', Ronnie: 'ronnie', Hollie: 'hollie', 'Ben (chef)': 'chef', 'Lewis (karaoke)': 'lewis' }[c] || c);
 
 // ---------------------------------------------------------------- studio UI
 let recorder = null, recKey = null, chunks = [];

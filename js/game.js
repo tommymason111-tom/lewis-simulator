@@ -57,7 +57,7 @@ export function startShift(id) {
   G.people.length = 0; G.items.length = 0;
   G.interactables = [];
   G.talk = null;
-  G.ronnie = G.ian = G.hollie = G.chef = null; G.regulars = [];
+  G.ronnie = G.ian = G.hollie = G.chef = G.ben = null; G.regulars = [];
   clearDecor(); G.seasonUpdate = null; resetBoss(); G.kegOut = false;
   G.shift = newShift(cfg);
   G.groupsRef = S.groups;

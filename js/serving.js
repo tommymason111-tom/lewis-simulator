@@ -305,7 +305,7 @@ function updateKitchen(dt) {
       if (!slot) { k.t = 1; continue; }
       kitchenQueue.splice(i, 1);
       const it = spawnPlate(k.dish, k.table, slot);
-      it.onPass = true; it.sleeping = true;
+      it.onPass = true; it.sleeping = true; it.passTime = G.time;
       sfx.ding();
       emit('plateUp', it);
     }

@@ -90,7 +90,7 @@ export const LINES = {
     chase: ['On it!', 'Leave it to me!'],
     water: ['Cheers babe!', 'Hydration!'],
   },
-  chef: ['OUT OF MY KITCHEN!', 'NOT IN HERE, LANKY!'],
+  chef: ['OUT OF MY KITCHEN!', 'NOT IN HERE, LANKY!', 'SERVICE!', 'Hands please!', 'Table four, fish and chips, go go go!', 'Lewis! Your table\'s waiting!'],
   regulars: ['OHHHHH!', 'MIND YOUR HEAD!', 'HAHAHA!', 'AGAIN! AGAIN!'],
   commentary: ['What a strike!', 'Oh, he has hit that sweetly!', 'The big man does it again!', 'Unbelievable scenes at the Oysterfleet!', 'You will not see a better goal in a pub garden!'],
   karaoke: ['Oh Oysterfleet, my Oysterfleet!', 'Mind your heaaaaad, mind your heaaaad!', 'Ronnie dropped the plates again, whoa-oh!', 'Dad is in the camo, you can\'t see him at all!', 'Tall lad in the bar, he\'s hitting all the beams!'],

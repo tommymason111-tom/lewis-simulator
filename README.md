@@ -58,10 +58,12 @@ On the Quest, your order pad and meters sit on your left wrist. Look at your han
 - **Hollie**: serve her perfectly to calm every table. You can pick her up and throw her like anyone else (she won't speak to you for a minute afterwards). She chases runners, throws you a protein bar when your stamina's low, and her fitness watch counts your steps.
 - **Customers**: families, pensioners, stag dos, complainers, influencers, football fans, a secret food critic, and the lads as cameos (Noah has Ian's build).
 
-**Characters** (built from the Ronnie Simulator cast):
+**Real models for Lewis, Ian and Ben**: the scanned models in `models/` (cut from 355k–509k triangles down to 20k each so the Quest can run them) are rigged automatically when the game loads. They walk, sit, get picked up and ragdoll like everyone else. If a model fails to load, that character falls back to the built-in look.
+
+**Ben (the chef)**: works the kitchen behind the pass. Every so often he comes out through the kitchen door to hand Lewis a plate that's been sitting on the pass too long, or to nag him about a table ("I've got no ticket for table 4!", "Table 6 want the bill", "Table 2 are still waiting on drinks"). Once he's out of the kitchen, he can be thrown like anyone else.
+
+**Other characters** (built from the Ronnie Simulator cast):
 - **Ronnie**: black buzz cut, goatee, blue "RONNIE 10" shirt, grey joggers, sliders, MONSTOR can in his pocket.
-- **Lewis** (you, seen when you look down or take a selfie): 6ft 3 gym bro, curly mullet, patchy stubble, Palace-style stripes under the apron.
-- **Ian**: big, white skin, grey hair, full camo.
 - **Hollie**: same level of detail as the others.
 - **The locals**: all old men (flat caps, cardigans, moustaches, a slight stoop).
 - **The lads**: their Ronnie Simulator looks and club colours.
@@ -159,6 +161,7 @@ Settings include a "normal height" mode (no crouching, no bonks), seated mode, l
 - `js/replay.js`: replay theatre
 - `js/voice.js`: voice studio (record / import / export)
 - `voices/pack.json`: shared voice recordings (empty until you upload one)
+- `js/rig.js`, `js/glb.js`: loading and auto-rigging the scanned models in `models/`
 - `js/data.js`: all the content: menu, lines, shifts, modes, events per shift, cosmetics, achievements, Ian's and Noah's builds. **Edit this to add in-jokes.**
 - `js/audio.js`: synthesised sound effects and voices
 

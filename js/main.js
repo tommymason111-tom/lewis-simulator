@@ -7,6 +7,7 @@ import { takePhoto, loadPhotos } from './toys.js';
 import { initVoices, renderStudio } from './voice.js';
 import { startReplay, updateReplay, hasReplay } from './replay.js';
 import { hasUpgrade } from './state.js';
+import { preloadModels } from './rig.js';
 import { createPlayer, setupInput, setupTouch, attachHands, releasePointer, applyCosmetics } from './player.js';
 import { initHUD, setVRHud, showPanel, hidePanel, updateHUD } from './hud.js';
 import { startShift, updateGame, renderPeople, endShift, resultsSummary, cfgFor } from './game.js';
@@ -16,7 +17,7 @@ const $ = (id) => document.getElementById(id);
 let xrSupported = false, arSupported = false;
 let pendingShift = null;
 
-function init() {
+async function init() {
   loadSave();
   window.LEWIS = G; // handy for debugging from the browser console
   const canvas = $('c');
@@ -38,6 +39,7 @@ function init() {
 
   buildWorld();
   setTimeOfDay(13);
+  await preloadModels();
   createPlayer();
   initHUD();
   setupInput(canvas);
@@ -351,7 +353,7 @@ function vrPanelInput() {
 // Credits roll as a bar tab listing everyone in the friend group.
 function creditsHTML() {
   const rows = [['Lewis', 'Very tall waiter', 'Head bonks'], ['Ronnie', 'The "helper"', '6 smashed plates'], ['Hollie', 'Girlfriend, 5K runner', '1 protein bar'], ['Ian', 'Dad. Full camo.', '14 pints + 1 fish'],
-    ...FRIENDS.map((f) => [f, 'Customer / cameo', 'Tap water (no tip)']), ['Chef', 'Head chef', 'Shouting'], ['Big Dave, Sandra, Old Pete', 'Regulars', 'OHHHH!']];
+    ...FRIENDS.map((f) => [f, 'Customer / cameo', 'Tap water (no tip)']), ['Ben', 'Head chef at the Fleet', 'Shouting "SERVICE!"'], ['Big Dave, Old Ted, Old Pete', 'Regulars', 'OHHHH!']];
   return `<div class="tab"><h3>THE OYSTERFLEET · BAR TAB</h3><table>${rows.map(([n, r, i]) => `<tr><td><b>${n}</b></td><td>${r}</td><td>${i}</td></tr>`).join('')}</table><p>TOTAL: one week survived. Service not included. Mind your head on the way out.</p></div>`;
 }
 
@@ -371,4 +373,4 @@ function ronnieCam(renderer) {
   renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
 }
 
-init();
+init().then(() => document.getElementById('loading')?.remove()).catch((e) => { const l = document.getElementById('loading'); if (l) l.textContent = 'Could not start the game: ' + e.message; console.error(e); });

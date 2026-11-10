@@ -7,6 +7,7 @@ import { G, V, UP, FIXED, GRAVITY, rand, pick, clamp, emit } from './state.js';
 import { collideParticle, findPath, zoneAt, nearestWalkable } from './world.js';
 import { Bubble, labelSprite } from './textures.js';
 import { buildCharacter, B, SKINS, defaultLook } from './models.js';
+import { buildFromModel, hasModel } from './rig.js';
 import { sfx } from './audio.js';
 
 // Particle indices (0-6 unchanged from before; 7-10 add elbows and knees)
@@ -91,8 +92,9 @@ export class Person {
     if (G.shift?.rules?.bigHeads) this.look.headScale = (this.look.headScale || 1) * 1.7;
     if (G.shift?.rules?.everyoneIan && opts.kind === 'customer') Object.assign(this.look, { pattern: 'camo', trousersCamo: true, hat: 'camo', sleeves: 'long', jacket: null });
     const L = defaultLook(this.look);
+    this.model = opts.model && hasModel(opts.model) ? opts.model : null;
     this.scale = L.scale;
-    this.wide = L.wide;
+    this.wide = this.model ? (opts.wide || 1) : L.wide;
     this.hunch = L.hunch || 0;
     this.heavy = opts.heavy || (L.wide > 1.4 ? 2.2 : 1);
     this.walkSpeed = opts.walkSpeed || (L.old ? 0.8 : 1.1);
@@ -123,9 +125,10 @@ export class Person {
 
   buildMesh(opts) {
     this.group = new THREE.Group();
-    const built = buildCharacter(this.look, { noArms: this.noArms, splitHead: !!opts.splitHead });
+    const built = this.model ? buildFromModel(this.model, { noArms: this.noArms, splitHead: !!opts.splitHead }) : buildCharacter(this.look, { noArms: this.noArms, splitHead: !!opts.splitHead });
     this.mesh = built.mesh; this.headMesh = built.headMesh; this.bones = built.bones; this.dims = built.dims;
     this.headR = built.dims.R;
+    if (built.imported) { this.imported = true; this.poseMap = built.poseMap; this.scale = built.poseMap.k; }
     this.group.add(this.mesh);
     if (this.headMesh) this.group.add(this.headMesh);
     if (opts.prop) { this.prop = opts.prop; this.group.add(opts.prop); }
@@ -168,8 +171,13 @@ export class Person {
       if (this.pose === 'pressup') { const k = (Math.sin(ph * 1.5) + 1) * 0.5; if (i <= PELVIS) y += k * 0.25 * (i === PELVIS ? 0.4 : 1); }
       if (this.pose === 'speech' && i === RH) x += Math.sin(ph * 2) * 0.15;
       const v = A[i];
+      if (this.imported) {
+        // Fit the generic pose to this model's own proportions
+        if ((i === LH || i === RH) && Math.abs(x) > 0.2 && Math.abs(x) < 0.3) x = Math.sign(x) * (this.dims.shoulderX / s + 0.1);
+        if ((i === LF || i === RF) && Math.abs(x) < 0.2) x = Math.sign(x) * (this.dims.hipX / s + 0.01);
+      }
       v.copy(this.root).addScaledVector(this.side, x * s).addScaledVector(this.fwd, z * s);
-      v.y += y * s + this.lift;
+      v.y += (this.poseMap ? mapY(y, this.poseMap) : y * s) + this.lift;
     }
     // Elbows & knees by two-bone IK
     const d = this.dims;
@@ -421,7 +429,7 @@ export class Person {
     side.normalize(); this.side.copy(side);
     const fwd = V().crossVectors(side, up).normalize();
     const bones = this.bones;
-    setBasis(bones[B.TORSO], p[PELVIS], side, up, fwd, clamp(len / d.torsoLen, 0.75, 1.3));
+    setBasis(bones[B.TORSO], p[PELVIS], side, up, fwd, this.imported ? 1 : clamp(len / d.torsoLen, 0.75, 1.3));
     // Head
     const headUp = V().subVectors(p[HEAD], p[NECK]).normalize();
     const hside = side.clone().addScaledVector(headUp, -side.dot(headUp)).normalize();
@@ -433,16 +441,17 @@ export class Person {
     // Limbs
     const sh = (sx) => V().copy(p[NECK]).addScaledVector(side, sx * d.shoulderX).addScaledVector(up, -0.04 * this.scale);
     const hip = (sx) => V().copy(p[PELVIS]).addScaledVector(side, sx * d.hipX);
-    limbBone(bones[B.UARM_L], sh(-1), p[LE], side, fwd, d.upper);
-    limbBone(bones[B.UARM_R], sh(1), p[RE], side, fwd, d.upper);
-    limbBone(bones[B.FARM_L], p[LE], p[LH], side, fwd, d.fore);
-    limbBone(bones[B.FARM_R], p[RE], p[RH], side, fwd, d.fore);
+    const im = this.imported ? 0 : 1;
+    limbBone(bones[B.UARM_L], sh(-1), p[LE], side, fwd, d.upper * im);
+    limbBone(bones[B.UARM_R], sh(1), p[RE], side, fwd, d.upper * im);
+    limbBone(bones[B.FARM_L], p[LE], p[LH], side, fwd, d.fore * im);
+    limbBone(bones[B.FARM_R], p[RE], p[RH], side, fwd, d.fore * im);
     limbBone(bones[B.HAND_L], p[LH], V().copy(p[LH]).multiplyScalar(2).sub(p[LE]), side, fwd, 0);
     limbBone(bones[B.HAND_R], p[RH], V().copy(p[RH]).multiplyScalar(2).sub(p[RE]), side, fwd, 0);
-    limbBone(bones[B.THIGH_L], hip(-1), p[LK], side, fwd, d.thigh);
-    limbBone(bones[B.THIGH_R], hip(1), p[RK], side, fwd, d.thigh);
-    limbBone(bones[B.SHIN_L], p[LK], p[LF], side, fwd, d.shin);
-    limbBone(bones[B.SHIN_R], p[RK], p[RF], side, fwd, d.shin);
+    limbBone(bones[B.THIGH_L], hip(-1), p[LK], side, fwd, d.thigh * im);
+    limbBone(bones[B.THIGH_R], hip(1), p[RK], side, fwd, d.thigh * im);
+    limbBone(bones[B.SHIN_L], p[LK], p[LF], side, fwd, d.shin * im);
+    limbBone(bones[B.SHIN_R], p[RK], p[RF], side, fwd, d.shin * im);
     footBone(bones[B.FOOT_L], p[LF], p[LK], side);
     footBone(bones[B.FOOT_R], p[RF], p[RK], side);
     if (this.prop) { this.prop.position.copy(p[RH]); this.prop.quaternion.setFromRotationMatrix(_m.makeBasis(side, up, fwd)); }
@@ -478,6 +487,14 @@ export class Person {
 }
 
 // --------------------------------------------------------------- helpers
+// Map a generic pose height (1.75m person) onto a model's own joint heights.
+function mapY(y, m) {
+  const pts = [[0, 0], [0.06, m.foot], [0.95, m.pelvis], [1.40, m.neck], [1.62, m.head]];
+  if (y >= 1.62) return m.head + (y - 1.62) * m.k;
+  if (y <= 0) return y * m.k;
+  for (let i = 1; i < pts.length; i++) if (y <= pts[i][0]) { const [y0, v0] = pts[i - 1], [y1, v1] = pts[i]; return v0 + (y - y0) / (y1 - y0) * (v1 - v0); }
+  return y * m.k;
+}
 function ik(out, a, c, l1, l2, bendDir) {
   const d = V().subVectors(c, a);
   let dist = d.length();
